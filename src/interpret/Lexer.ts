@@ -54,13 +54,11 @@ export class Lexer {
     }
 
     private scanToken() {
-        // Skip whitespace at the start of line
-        if (this.isStartOfLine()) {
-            while (this.peek() === ' ' || this.peek() === '\t') {
-                this.advance();
-            }
-            this.start = this.current;
+        // Skip whitespace
+        while (this.isWhitespace(this.peek())) {
+            this.advance();
         }
+        this.start = this.current;
 
         // Handle newlines
         if (this.peek() === '\n') {
@@ -70,13 +68,31 @@ export class Lexer {
             return;
         }
 
-        // Skip other whitespace
-        if (this.isWhitespace(this.peek())) {
-            while (this.isWhitespace(this.peek())) {
+        // First check for special characters and operators
+        const c = this.peek();
+        switch (c) {
+            case '(':
                 this.advance();
-            }
-            this.start = this.current;
-            return;  // 直接返回，不生成token
+                this.addToken(TokenType.LEFT_PAREN);
+                return;
+            case ')':
+                this.advance();
+                this.addToken(TokenType.RIGHT_PAREN);
+                return;
+            case '{':
+                this.advance();
+                this.addToken(TokenType.LEFT_BRACE);
+                return;
+            case '}':
+                this.advance();
+                this.addToken(TokenType.RIGHT_BRACE);
+                return;
+            case '"':
+            case "'":
+            case '`':
+                this.advance();
+                this.scanString();
+                return;
         }
 
         // If we're at the start of a line
@@ -94,24 +110,11 @@ export class Lexer {
         }
 
         // Handle other tokens
-        const c = this.advance();
-        switch (c) {
-            case '(': this.addToken(TokenType.LEFT_PAREN); break;
-            case ')': this.addToken(TokenType.RIGHT_PAREN); break;
-            case '{': this.addToken(TokenType.LEFT_BRACE); break;
-            case '}': this.addToken(TokenType.RIGHT_BRACE); break;
-            case '"': this.scanString(); break;
-            case "'": this.scanString(); break;
-            case '&': this.addToken(TokenType.AND); break;
-            case '|': this.addToken(TokenType.OR); break;
-            case '!': this.addToken(TokenType.NOT); break;
-            default:
-                if (this.isAlpha(c)) {
-                    this.scanAction();
-                } else {
-                    throw new Error(`Unexpected character '${c}' at line ${this.line}`);
-                }
-                break;
+        this.advance();
+        if (this.isAlpha(c)) {
+            this.scanAction();
+        } else {
+            throw new Error(`Unexpected character '${c}' at line ${this.line}`);
         }
     }
 
