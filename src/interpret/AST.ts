@@ -67,4 +67,5 @@ export type Expression = {
   type: 'Expression';
   minecraft: string;
   js: string;
+  logic: "AND" | "OR" | null;
 }

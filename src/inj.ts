@@ -42,7 +42,7 @@ console.dir(codeTree, {
 let tokens = new Lexer(`execute as @s run function gc:test
 if("block ~ ~ ~ stone") {
 	say 1
-}else{
+}elif(1 == 1){
 	tellraw @a "Hello World"
 }
 for(let i of [1,2,3,4]) {

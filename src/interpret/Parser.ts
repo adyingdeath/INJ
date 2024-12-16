@@ -169,6 +169,9 @@ export class Parser {
         while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
             const stmt = this.statement();
             if (stmt) statements.push(stmt);
+            
+            // Skip any trailing EOL tokens after the statement
+            while (this.match(TokenType.EOL)) {}
         }
 
         this.consume(TokenType.RIGHT_BRACE, "Expected '}' after block.");
@@ -178,6 +181,8 @@ export class Parser {
     private parseCondition(): Expression {
         let minecraft = '';
         let js = '';
+        let logic: "AND" | "OR" | null = null;
+        let jsComponents: string[] = [];
 
         while (!this.check(TokenType.RIGHT_PAREN) && !this.isAtEnd()) {
             const token = this.advance();
@@ -187,22 +192,49 @@ export class Parser {
                     minecraft = token.lexeme;
                     break;
                 case TokenType.JS_LOGIC:
-                    js = token.lexeme;
+                    jsComponents.push(token.lexeme);
                     break;
                 case TokenType.AND:
+                    if (minecraft || js) {
+                        logic = "AND";
+                    }
+                    break;
                 case TokenType.OR:
+                    // 如果是OR，将前面的JS组件用||连接
+                    if (jsComponents.length > 0) {
+                        js = jsComponents.join(' || ');
+                        jsComponents = [];
+                    }
+                    if (minecraft || js) {
+                        logic = "OR";
+                    }
+                    break;
                 case TokenType.NOT:
-                    // Handle logical operators
-                    js += token.type === TokenType.AND ? ' && ' : 
-                         token.type === TokenType.OR ? ' || ' : '!';
+                    // 为下一个表达式添加NOT
+                    jsComponents.push('!');
                     break;
             }
+        }
+
+        // 处理剩余的JS组件
+        if (jsComponents.length > 0) {
+            if (js) {
+                // 如果已经有js内容，根据最后的logic类型连接
+                js += logic === "AND" ? ' && ' : ' || ';
+            }
+            js += jsComponents.join(' || ');
+        }
+
+        // 如果只有一种类型的逻辑，将logic设为null
+        if (!minecraft || !js) {
+            logic = null;
         }
 
         return {
             type: 'Expression',
             minecraft,
-            js
+            js,
+            logic
         };
     }
 
