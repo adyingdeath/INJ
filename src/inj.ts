@@ -38,8 +38,7 @@ console.dir(codeTree, {
     showHidden: true 
 }); */
 
-console.log(new Lexer(`
-execute as @s run function gc:test
+console.log(new Lexer(`execute as @s run function gc:test
 if("block ~ ~ ~ stone") {
 	say 1
 }else{
@@ -52,5 +51,4 @@ for(let i of [1,2,3,4]) {
 	}
 	setblock ~ ~ ~ stone
 }
-execute as @s run function gc:gogo
-`).scanTokens());
+execute as @s run function gc:gogo`).scanTokens());
