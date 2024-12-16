@@ -2,3 +2,4 @@
 /test.mcfunction
 /node_modules/
 /dist/
+/.vscode/

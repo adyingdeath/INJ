@@ -2,12 +2,18 @@ import randomCode from "../util/randomCode.js";
 import fs from "fs";
 import path from "path";
 
-enum SnippetType {
-    RAW,
-    MC,
-    INJ,
+/**
+ * Enum representing different types of code snippets
+ */
+export enum SnippetType {
+    RAW,  // Raw mcfunction code
+    MC,   // Minecraft command
+    INJ,  // Injected code
 }
 
+/**
+ * Interface representing a code snippet in the tree
+ */
 export interface Snippet {
     id: string;
     filename: string;
@@ -16,16 +22,24 @@ export interface Snippet {
     next: Snippet | null;
 }
 
+/**
+ * Interface representing the root structure of the code tree
+ * Maps namespace strings to arrays of snippets
+ */
 interface CodeTreeRoot {
     [namespace: string]: Snippet[];
 }
 
+/**
+ * Class representing a tree structure for Minecraft function files
+ * Scans and organizes mcfunction files from a datapack directory
+ */
 export default class CodeTree {
     public root: CodeTreeRoot;
 
     constructor(filename: string) {
         this.root = {};
-        // 只扫描根目录下的直接子文件夹
+        // Only scan direct subdirectories in root
         const items = fs.readdirSync(filename);
         for (const item of items) {
             const fullPath = path.join(filename, item);
@@ -37,13 +51,14 @@ export default class CodeTree {
     }
 
     /**
-     * 扫描命名空间文件夹，只处理其中的 functions 目录
+     * Scans a namespace directory and processes its 'functions' subdirectory
+     * @param namespacePath - Path to the namespace directory
      */
     private scanNamespace(namespacePath: string) {
         const namespace = path.basename(namespacePath);
         const functionsPath = path.join(namespacePath, 'functions');
         
-        // 如果存在 functions 目录，则扫描它
+        // If 'functions' directory exists, scan it
         if (fs.existsSync(functionsPath)) {
             this.root[namespace] = [];
             this.scanFunctionsDirectory(functionsPath, namespace, functionsPath);
@@ -51,7 +66,10 @@ export default class CodeTree {
     }
 
     /**
-     * 递归扫描 functions 目录，处理所有 .mcfunction 文件
+     * Recursively scans the functions directory and processes all .mcfunction files
+     * @param directory - Current directory being scanned
+     * @param namespace - Namespace of the datapack
+     * @param functionsRoot - Root directory of functions for relative path calculation
      */
     private scanFunctionsDirectory(directory: string, namespace: string, functionsRoot: string) {
         const items = fs.readdirSync(directory);
@@ -61,19 +79,19 @@ export default class CodeTree {
             const stat = fs.statSync(fullPath);
             
             if (stat.isDirectory()) {
-                // 递归扫描子目录
+                // Recursively scan subdirectories
                 this.scanFunctionsDirectory(fullPath, namespace, functionsRoot);
             } else if (item.endsWith('.mcfunction')) {
-                // 读取并处理 .mcfunction 文件
+                // Read and process .mcfunction file
                 const code = fs.readFileSync(fullPath, 'utf-8');
                 
-                // 计算相对于 functions 目录的路径并移除后缀名
+                // Calculate path relative to functions directory and remove extension
                 const relativePath = path.relative(functionsRoot, fullPath);
-                const filenameWithoutExt = relativePath.slice(0, -11); // 移除 '.mcfunction' 后缀
+                const filenameWithoutExt = relativePath.slice(0, -11); // Remove '.mcfunction' extension
                 
                 this.root[namespace].push({
                     id: randomCode(8),
-                    filename: filenameWithoutExt.replace(/\\/g, '/'), // 确保使用正斜杠
+                    filename: filenameWithoutExt.replace(/\\/g, '/'), // Ensure forward slashes
                     type: SnippetType.RAW,
                     code: code,
                     next: null
@@ -82,5 +100,3 @@ export default class CodeTree {
         }
     }
 }
-
-new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/GC/src")
