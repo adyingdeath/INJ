@@ -21,6 +21,8 @@ export interface Token {
     type: TokenType;
     lexeme: string;
     line: number;
+    start: number;
+    end: number;
 }
 
 export class Lexer {
@@ -43,7 +45,9 @@ export class Lexer {
         this.tokens.push({
             type: TokenType.EOF,
             lexeme: "",
-            line: this.line
+            line: this.line,
+            start: this.current,
+            end: this.current
         });
 
         return this.tokens;
@@ -199,9 +203,12 @@ export class Lexer {
             return;
         }
         
-        this.advance(); // consume the '('
+        // Add left parenthesis as a token
         this.start = this.current;
+        this.advance();
+        this.addToken(TokenType.LEFT_PAREN);
         
+        this.start = this.current;
         let parenCount = 1;
         
         // Read until matching closing parenthesis
@@ -219,7 +226,10 @@ export class Lexer {
         this.addToken(TokenType.FOR_PARAMS);
         
         if (!this.isAtEnd()) {
-            this.advance(); // consume the closing ')'
+            // Add right parenthesis as a token
+            this.start = this.current;
+            this.advance();
+            this.addToken(TokenType.RIGHT_PAREN);
         }
     }
 
@@ -234,7 +244,10 @@ export class Lexer {
             return;
         }
         
-        this.advance(); // consume the '('
+        // Add left parenthesis as a token
+        this.start = this.current;
+        this.advance();
+        this.addToken(TokenType.LEFT_PAREN);
         
         // Scan logic expressions
         while (!this.isAtEnd() && this.peek() !== ')') {
@@ -242,7 +255,10 @@ export class Lexer {
         }
         
         if (!this.isAtEnd()) {
-            this.advance(); // consume the closing ')'
+            // Add right parenthesis as a token
+            this.start = this.current;
+            this.advance();
+            this.addToken(TokenType.RIGHT_PAREN);
         }
     }
 
@@ -336,8 +352,10 @@ export class Lexer {
         
         this.tokens.push({
             type: isMinecraftLogic ? TokenType.MINECRAFT_LOGIC : TokenType.JS_LOGIC,
-            lexeme: isMinecraftLogic ? content.slice(1, -1) : content, // Remove quotes for MINECRAFT_LOGIC
-            line: this.line
+            lexeme: isMinecraftLogic ? content.slice(1, -1) : content,
+            line: this.line,
+            start: this.start,
+            end: this.current
         });
     }
 
@@ -415,7 +433,9 @@ export class Lexer {
         this.tokens.push({
             type,
             lexeme: text,
-            line: this.line
+            line: this.line,
+            start: this.start,
+            end: this.current
         });
     }
 

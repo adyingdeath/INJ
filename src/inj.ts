@@ -3,6 +3,7 @@ import CodeTree from "./interpret/CodeTree.js";
 import { Interpreter } from "./interpret/Interpreter.js";
 import { Lexer } from "./interpret/Lexer.js";
 import fs from "fs";
+import { Parser } from "./interpret/Parser.js";
 
 const args = minimist(process.argv.slice(2));
 
@@ -38,7 +39,7 @@ console.dir(codeTree, {
     showHidden: true 
 }); */
 
-console.log(new Lexer(`execute as @s run function gc:test
+let tokens = new Lexer(`execute as @s run function gc:test
 if("block ~ ~ ~ stone") {
 	say 1
 }else{
@@ -51,4 +52,12 @@ for(let i of [1,2,3,4]) {
 	}
 	setblock ~ ~ ~ stone
 }
-execute as @s run function gc:gogo`).scanTokens());
+execute as @s run function gc:gogo`).scanTokens();
+
+console.log(tokens);
+
+let program = new Parser(tokens).parse();
+
+console.dir(program, {
+    depth: null
+});
