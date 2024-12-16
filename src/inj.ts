@@ -1,6 +1,8 @@
 import minimist from "minimist";
 import CodeTree from "./interpret/CodeTree.js";
 import { Interpreter } from "./interpret/Interpreter.js";
+import { Lexer } from "./interpret/Lexer.js";
+import fs from "fs";
 
 const args = minimist(process.argv.slice(2));
 
@@ -22,7 +24,8 @@ class INJ {
 }
 
 
-const codeTree = new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/GC/src")
+/* const codeTree = new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/GC/src")
+
 console.dir(codeTree, { 
     depth: null,
     colors: true,
@@ -33,4 +36,21 @@ console.dir(codeTree, {
     depth: null,
     colors: true,
     showHidden: true 
-});
+}); */
+
+console.log(new Lexer(`
+execute as @s run function gc:test
+if("block ~ ~ ~ stone") {
+	say 1
+}else{
+	tellraw @a "Hello World"
+}
+for(let i of [1,2,3,4]) {
+	while(1 || "1" != 1 && "block ~ ~ ~ stone") {
+        let i = 1;
+		say 1
+	}
+	setblock ~ ~ ~ stone
+}
+execute as @s run function gc:gogo
+`).scanTokens());

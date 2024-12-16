@@ -1,60 +1,39 @@
-/**
- * Token types supported by the lexer
- */
 export enum TokenType {
-    // Basic tokens
-    LEFT_PAREN = 'LEFT_PAREN',     // (
-    RIGHT_PAREN = 'RIGHT_PAREN',   // )
-    LEFT_BRACE = 'LEFT_BRACE',     // {
-    RIGHT_BRACE = 'RIGHT_BRACE',   // }
-    HASH = 'HASH',                 // #
-    AT = 'AT',                     // @
-    
-    // Function related
-    IDENTIFIER = 'IDENTIFIER',      // 函数名或标识符
-    PARAM_TEXT = 'PARAM_TEXT',      // 函数参数文本
-    BLOCK_START = 'BLOCK_START',    // 代码块开始
-    BLOCK_END = 'BLOCK_END',        // 代码块结束
-    POST_ELEMENT = 'POST_ELEMENT',  // 后置元素（如 else, elif）
-    
-    // Special
-    EOF = 'EOF'
+    MINECRAFT_COMMAND, // For pure minecraft commands
+    JS_CODE,          // For JavaScript-like code ending with semicolon
+    ACTION,           // For action names like 'if', 'while'
+    LEFT_PAREN,       // (
+    RIGHT_PAREN,      // )
+    LEFT_BRACE,       // {
+    RIGHT_BRACE,      // }
+    STRING,           // For string literals
+    AND,              // &
+    OR,               // |
+    NOT,              // !
+    FOR_PARAMS,       // Special token for for loop parameters
+    MINECRAFT_LOGIC,   // For minecraft logic conditions
+    JS_LOGIC,         // For JavaScript logic conditions
+    EOL,              // End of line
+    EOF               // End of file
 }
 
-/**
- * Represents a token in the source code
- */
 export interface Token {
     type: TokenType;
     lexeme: string;
-    literal: any;
     line: number;
 }
 
-/**
- * Lexical analyzer that converts source code into tokens
- */
 export class Lexer {
     private source: string;
     private tokens: Token[] = [];
     private start = 0;
     private current = 0;
     private line = 1;
-    private parenDepth = 0;
-    private braceDepth = 0;
 
-    /**
-     * Creates a new lexer instance
-     * @param source The source code to analyze
-     */
     constructor(source: string) {
         this.source = source;
     }
 
-    /**
-     * Scans the source code and returns an array of tokens
-     * @returns Array of tokens
-     */
     scanTokens(): Token[] {
         while (!this.isAtEnd()) {
             this.start = this.current;
@@ -63,8 +42,7 @@ export class Lexer {
 
         this.tokens.push({
             type: TokenType.EOF,
-            lexeme: '',
-            literal: null,
+            lexeme: "",
             line: this.line
         });
 
@@ -72,142 +50,355 @@ export class Lexer {
     }
 
     private scanToken() {
-        const c = this.advance();
-        switch (c) {
-            case '(':
-                this.addToken(TokenType.LEFT_PAREN);
-                this.parenDepth++;
-                break;
-            case ')':
-                this.addToken(TokenType.RIGHT_PAREN);
-                this.parenDepth--;
-                if (this.parenDepth === 0) {
-                    // 参数部分结束，接下来可能是代码块或后置元素
-                    this.scanPostParenContent();
-                }
-                break;
-            case '{':
-                this.addToken(TokenType.LEFT_BRACE);
-                this.braceDepth++;
-                break;
-            case '}':
-                this.addToken(TokenType.RIGHT_BRACE);
-                this.braceDepth--;
-                if (this.braceDepth === 0) {
-                    // 代码块结束，检查是否有后置元素
-                    this.scanPostBlockContent();
-                }
-                break;
-            case '#':
-                // 处理注释
-                while (this.peek() !== '\n' && !this.isAtEnd()) this.advance();
-                break;
-            case '@':
-                this.addToken(TokenType.AT);
-                break;
-            case ' ':
-            case '\r':
-            case '\t':
-                // 忽略空白字符
-                break;
-            case '\n':
-                this.line++;
-                break;
-            default:
-                if (this.isAlpha(c)) {
-                    this.identifier();
-                } else if (this.parenDepth > 0) {
-                    // 在括号内，收集参数文本
-                    this.paramText();
-                } else {
-                    throw new Error(`Unexpected character at line ${this.line}`);
-                }
-                break;
+        // Skip whitespace at the start of line
+        if (this.isStartOfLine()) {
+            while (this.peek() === ' ' || this.peek() === '\t') {
+                this.advance();
+            }
+            this.start = this.current;
         }
-    }
 
-    /**
-     * 处理括号后的内容
-     */
-    private scanPostParenContent() {
-        this.skipWhitespace();
-        if (this.peek() === '{') {
-            // 是代码块
-            this.addToken(TokenType.BLOCK_START);
+        // Handle newlines
+        if (this.peek() === '\n') {
+            this.line++;
+            this.advance();
+            this.addToken(TokenType.EOL);
+            return;
         }
-    }
 
-    /**
-     * 处理代码块后的内容
-     */
-    private scanPostBlockContent() {
-        this.skipWhitespace();
-        if (this.isAlpha(this.peek())) {
-            // 可能是后置元素（如 else, elif）
-            const start = this.current;
-            while (this.isAlpha(this.peek())) this.advance();
-            const text = this.source.substring(start, this.current);
-            if (text === 'else' || text === 'elif') {
-                this.addToken(TokenType.POST_ELEMENT, text);
+        // If we're at the start of a line
+        if (this.isStartOfLine()) {
+            // Check for JS code (ends with semicolon)
+            if (this.hasJSCodePattern()) {
+                this.scanJSCode();
+                return;
+            }
+            // Check for action pattern
+            if (!this.isActionPattern()) {
+                this.scanMinecraftCommand();
+                return;
             }
         }
+
+        // Handle other tokens
+        const c = this.advance();
+        switch (c) {
+            case '(': this.addToken(TokenType.LEFT_PAREN); break;
+            case ')': this.addToken(TokenType.RIGHT_PAREN); break;
+            case '{': this.addToken(TokenType.LEFT_BRACE); break;
+            case '}': this.addToken(TokenType.RIGHT_BRACE); break;
+            case '"': this.scanString(); break;
+            case "'": this.scanString(); break;
+            case '&': this.addToken(TokenType.AND); break;
+            case '|': this.addToken(TokenType.OR); break;
+            case '!': this.addToken(TokenType.NOT); break;
+            default:
+                this.scanAction();
+                break;
+        }
     }
 
-    /**
-     * 处理标识符
-     */
-    private identifier() {
-        while (this.isAlphaNumeric(this.peek())) this.advance();
-        const text = this.source.substring(this.start, this.current);
-        this.addToken(TokenType.IDENTIFIER, text);
-    }
+    private scanString() {
+        const quoteChar = this.source.charAt(this.current - 1); // Get the opening quote type
 
-    /**
-     * 处理函数参数文本
-     */
-    private paramText() {
-        while (this.peek() !== ')' && !this.isAtEnd()) {
+        // Read until we find the matching quote
+        while (!this.isAtEnd() && this.peek() !== quoteChar) {
             if (this.peek() === '\n') this.line++;
             this.advance();
         }
-        const text = this.source.substring(this.start, this.current).trim();
-        if (text) {
-            this.addToken(TokenType.PARAM_TEXT, text);
+
+        if (this.isAtEnd()) {
+            // Handle unterminated string error
+            throw new Error(`Unterminated string at line ${this.line}`);
+        }
+
+        // Consume the closing quote
+        this.advance();
+
+        // Get the string value (including quotes)
+        this.addToken(TokenType.STRING);
+    }
+
+    private isActionPattern(): boolean {
+        let pos = this.current;
+        let foundAction = false;
+        
+        while (pos < this.source.length) {
+            const c = this.source.charAt(pos);
+            
+            if (c === '\n') {
+                break;
+            }
+            
+            if (!foundAction && this.isAlpha(c)) {
+                foundAction = true;
+            } else if (foundAction) {
+                // Check for all three patterns:
+                // 1. action(...)
+                // 2. action{...}
+                // 3. action()
+                if (c === '(' || c === '{') {
+                    return true;
+                } else if (!this.isWhitespace(c) && !this.isAlphaNumeric(c)) {
+                    return false;
+                }
+            }
+            
+            pos++;
+        }
+        
+        return false;
+    }
+
+    private isWhitespace(c: string): boolean {
+        return c === ' ' || c === '\t';
+    }
+
+    private scanMinecraftCommand() {
+        // Read the entire line as a Minecraft command
+        let command = '';
+        while (!this.isAtEnd()) {
+            const c = this.peek();
+            if (c === '\n') break;
+            command += this.advance();
+        }
+        
+        // Trim any trailing whitespace but keep the command intact
+        this.addToken(TokenType.MINECRAFT_COMMAND);
+    }
+
+    private scanAction() {
+        while (this.isAlphaNumeric(this.peek())) {
+            this.advance();
+        }
+        
+        const actionName = this.source.substring(this.start, this.current);
+        this.addToken(TokenType.ACTION);
+        
+        // Handle different action types
+        switch (actionName) {
+            case 'for':
+                this.scanForParams();
+                break;
+            case 'if':
+            case 'while':
+            case 'elif':
+                this.scanLogicParams();
+                break;
         }
     }
 
-    private skipWhitespace() {
-        while (true) {
+    private scanForParams() {
+        // Skip whitespace
+        while (this.peek() === ' ' || this.peek() === '\t') {
+            this.advance();
+        }
+        
+        // Make sure we're at a left parenthesis
+        if (this.peek() !== '(') {
+            return;
+        }
+        
+        this.advance(); // consume the '('
+        this.start = this.current;
+        
+        let parenCount = 1;
+        
+        // Read until matching closing parenthesis
+        while (!this.isAtEnd() && parenCount > 0) {
             const c = this.peek();
-            switch (c) {
-                case ' ':
-                case '\r':
-                case '\t':
-                    this.advance();
-                    break;
-                case '\n':
-                    this.line++;
-                    this.advance();
-                    break;
-                default:
-                    return;
+            if (c === '(') parenCount++;
+            if (c === ')') parenCount--;
+            
+            if (parenCount > 0) {
+                this.advance();
             }
         }
+        
+        // Add the FOR_PARAMS token
+        this.addToken(TokenType.FOR_PARAMS);
+        
+        if (!this.isAtEnd()) {
+            this.advance(); // consume the closing ')'
+        }
     }
 
-    private isAlpha(c: string): boolean {
-        return (c >= 'a' && c <= 'z') ||
-               (c >= 'A' && c <= 'Z') ||
-               c === '_' ||
-               c === '$';
+    private scanLogicParams() {
+        // Skip whitespace
+        while (this.peek() === ' ' || this.peek() === '\t') {
+            this.advance();
+        }
+        
+        // Make sure we're at a left parenthesis
+        if (this.peek() !== '(') {
+            return;
+        }
+        
+        this.advance(); // consume the '('
+        
+        // Scan logic expressions
+        while (!this.isAtEnd() && this.peek() !== ')') {
+            this.scanLogicExpression();
+        }
+        
+        if (!this.isAtEnd()) {
+            this.advance(); // consume the closing ')'
+        }
+    }
+
+    private scanLogicExpression() {
+        // Skip whitespace
+        while (this.isWhitespace(this.peek())) {
+            this.advance();
+        }
+        
+        // Handle NOT operator
+        if (this.peek() === '!') {
+            this.advance();
+            this.addToken(TokenType.NOT);
+            // Skip whitespace after NOT
+            while (this.isWhitespace(this.peek())) {
+                this.advance();
+            }
+        }
+        
+        this.start = this.current;
+        
+        // Analyze the complete logic variable
+        this.scanLogicVariable();
+        
+        // Skip whitespace
+        while (this.isWhitespace(this.peek())) {
+            this.advance();
+        }
+        
+        // Check for logical operators
+        if ((this.peek() === '&' && this.peekNext() === '&') || 
+            (this.peek() === '|' && this.peekNext() === '|')) {
+            const op = this.peek();
+            this.start = this.current;  // Start from the first & or |
+            this.advance();  // Consume first & or |
+            this.advance();  // Consume second & or |
+            this.addToken(op === '&' ? TokenType.AND : TokenType.OR);
+        }
+    }
+
+    private scanLogicVariable() {
+        let parenCount = 0;
+        let isString = false;
+        let stringChar = '';
+        let content = '';
+        this.start = this.current;
+        
+        while (!this.isAtEnd()) {
+            const c = this.peek();
+            
+            // Handle string literals
+            if ((c === '"' || c === "'" || c === '`') && !isString) {
+                isString = true;
+                stringChar = c;
+                content += this.advance();
+                continue;
+            }
+            
+            if (isString) {
+                content += this.advance();
+                if (c === '\\') {
+                    if (!this.isAtEnd()) {
+                        content += this.advance(); // Include escaped character
+                    }
+                    continue;
+                }
+                if (c === stringChar) {
+                    isString = false;
+                    continue;
+                }
+            } else {
+                if (c === '(') {
+                    parenCount++;
+                } else if (c === ')') {
+                    if (parenCount === 0) break;
+                    parenCount--;
+                } else if (parenCount === 0 && 
+                          ((c === '&' && this.peekNext() === '&') || 
+                           (c === '|' && this.peekNext() === '|'))) {
+                    break;
+                }
+                content += this.advance();
+            }
+        }
+        
+        // Trim whitespace
+        content = content.trim();
+        
+        // Determine if this is a MINECRAFT_LOGIC or JS_LOGIC
+        const isMinecraftLogic = this.isMinecraftLogicContent(content);
+        
+        this.tokens.push({
+            type: isMinecraftLogic ? TokenType.MINECRAFT_LOGIC : TokenType.JS_LOGIC,
+            lexeme: isMinecraftLogic ? content.slice(1, -1) : content, // Remove quotes for MINECRAFT_LOGIC
+            line: this.line
+        });
+    }
+
+    private isMinecraftLogicContent(content: string): boolean {
+        // Check if the content is a pure string literal
+        const trimmed = content.trim();
+        if (trimmed.length < 2) return false;
+        
+        const firstChar = trimmed[0];
+        const lastChar = trimmed[trimmed.length - 1];
+        
+        // Check if it's wrapped in matching quotes
+        if ((firstChar === '"' && lastChar === '"') ||
+            (firstChar === "'" && lastChar === "'") ||
+            (firstChar === '`' && lastChar === '`')) {
+            
+            // Check if there's any non-string content
+            const inner = trimmed.slice(1, -1);
+            // Make sure there are no unescaped quotes of the same type
+            const quoteCount = (inner.match(new RegExp(`[^\\\\]${firstChar}`, 'g')) || []).length;
+            return quoteCount === 0;
+        }
+        
+        return false;
+    }
+
+    private isStartOfLine(): boolean {
+        let pos = this.current - 1;
+        while (pos >= 0) {
+            const c = this.source.charAt(pos);
+            if (c === '\n') return true;
+            if (c !== ' ' && c !== '\t') return false;
+            pos--;
+        }
+        return true;
+    }
+
+    private peekWord(): string {
+        let pos = this.current;
+        while (pos < this.source.length && this.isAlphaNumeric(this.source.charAt(pos))) {
+            pos++;
+        }
+        return this.source.substring(this.current - 1, pos);
     }
 
     private isAlphaNumeric(c: string): boolean {
         return this.isAlpha(c) || this.isDigit(c);
     }
 
+    private isAlpha(c: string): boolean {
+        return (c >= 'a' && c <= 'z') ||
+               (c >= 'A' && c <= 'Z') ||
+               c === '_' || c === ':';
+    }
+
     private isDigit(c: string): boolean {
         return c >= '0' && c <= '9';
+    }
+
+    private advance(): string {
+        return this.source.charAt(this.current++);
     }
 
     private peek(): string {
@@ -215,32 +406,49 @@ export class Lexer {
         return this.source.charAt(this.current);
     }
 
-    private peekNext(): string {
-        if (this.current + 1 >= this.source.length) return '\0';
-        return this.source.charAt(this.current + 1);
-    }
-
     private isAtEnd(): boolean {
         return this.current >= this.source.length;
     }
 
-    private advance(): string {
-        return this.source.charAt(this.current++);
-    }
-
-    private addToken(type: TokenType, literal: any = null) {
+    private addToken(type: TokenType) {
         const text = this.source.substring(this.start, this.current);
         this.tokens.push({
             type,
             lexeme: text,
-            literal,
             line: this.line
         });
     }
-}
 
-console.log(new Lexer(`
-if(score gm4 load.status matches 1) {
-    
+    private hasJSCodePattern(): boolean {
+        let pos = this.current;
+        
+        while (pos < this.source.length) {
+            const c = this.source.charAt(pos);
+            if (c === '\n') return false;
+            if (c === ';') return true;
+            pos++;
+        }
+        
+        return false;
+    }
+
+    private scanJSCode() {
+        // Read until semicolon
+        while (!this.isAtEnd()) {
+            const c = this.peek();
+            if (c === '\n') break;
+            if (c === ';') {
+                this.advance(); // consume the semicolon
+                break;
+            }
+            this.advance();
+        }
+        
+        this.addToken(TokenType.JS_CODE);
+    }
+
+    private peekNext(): string {
+        if (this.current + 1 >= this.source.length) return '\0';
+        return this.source.charAt(this.current + 1);
+    }
 }
-`).scanTokens());
