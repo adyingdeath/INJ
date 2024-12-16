@@ -21,65 +21,39 @@ interface CodeTreeRoot {
 }
 
 export default class CodeTree {
-    private root: CodeTreeRoot;
+    public root: CodeTreeRoot;
 
-    constructor(filename: string, code: string) {
+    constructor(filename: string) {
         this.root = {};
-        
-        // 获取文件所在目录
-        const baseDir = path.dirname(filename);
-        
-        // 扫描目录
-        this.scanDirectory(baseDir);
-        
-        // 添加原始代码片段
-        const namespace = path.basename(baseDir);
-        if (!this.root[namespace]) {
-            this.root[namespace] = [];
+        // 只扫描根目录下的直接子文件夹
+        const items = fs.readdirSync(filename);
+        for (const item of items) {
+            const fullPath = path.join(filename, item);
+            if (fs.statSync(fullPath).isDirectory()) {
+                this.scanNamespace(fullPath);
+            }
         }
-        this.root[namespace].push({
-            id: randomCode(8),
-            filename: filename,
-            type: SnippetType.RAW,
-            code: code,
-            next: null
-        });
-
-        // 切割代码
-        this.cut();
+        console.log(this.root);
     }
 
     /**
-     * 递归扫描目录，查找并处理 .mcfunction 文件
+     * 扫描命名空间文件夹，只处理其中的 functions 目录
      */
-    private scanDirectory(directory: string) {
-        const items = fs.readdirSync(directory);
+    private scanNamespace(namespacePath: string) {
+        const namespace = path.basename(namespacePath);
+        const functionsPath = path.join(namespacePath, 'functions');
         
-        // 获取当前目录的命名空间（文件夹名）
-        const namespace = path.basename(directory);
-        
-        // 检查是否存在 functions 文件夹
-        if (items.includes('functions')) {
-            const functionsPath = path.join(directory, 'functions');
-            if (!this.root[namespace]) {
-                this.root[namespace] = [];
-            }
-            this.scanFunctionsDirectory(functionsPath, namespace);
-        }
-        
-        // 递归扫描子目录
-        for (const item of items) {
-            const fullPath = path.join(directory, item);
-            if (fs.statSync(fullPath).isDirectory() && item !== 'functions') {
-                this.scanDirectory(fullPath);
-            }
+        // 如果存在 functions 目录，则扫描它
+        if (fs.existsSync(functionsPath)) {
+            this.root[namespace] = [];
+            this.scanFunctionsDirectory(functionsPath, namespace, functionsPath);
         }
     }
 
     /**
      * 递归扫描 functions 目录，处理所有 .mcfunction 文件
      */
-    private scanFunctionsDirectory(directory: string, namespace: string) {
+    private scanFunctionsDirectory(directory: string, namespace: string, functionsRoot: string) {
         const items = fs.readdirSync(directory);
         
         for (const item of items) {
@@ -88,75 +62,25 @@ export default class CodeTree {
             
             if (stat.isDirectory()) {
                 // 递归扫描子目录
-                this.scanFunctionsDirectory(fullPath, namespace);
+                this.scanFunctionsDirectory(fullPath, namespace, functionsRoot);
             } else if (item.endsWith('.mcfunction')) {
                 // 读取并处理 .mcfunction 文件
                 const code = fs.readFileSync(fullPath, 'utf-8');
+                
+                // 计算相对于 functions 目录的路径并移除后缀名
+                const relativePath = path.relative(functionsRoot, fullPath);
+                const filenameWithoutExt = relativePath.slice(0, -11); // 移除 '.mcfunction' 后缀
+                
                 this.root[namespace].push({
                     id: randomCode(8),
-                    filename: fullPath,
-                    type: SnippetType.MC,
+                    filename: filenameWithoutExt.replace(/\\/g, '/'), // 确保使用正斜杠
+                    type: SnippetType.RAW,
                     code: code,
                     next: null
                 });
             }
         }
     }
-
-    /**
-     * Cut the original code snippet into multiple parts based on "="
-     * Each block of code surrounded by "=" will be of type INJ,
-     * while other code will be of type MC.
-     */
-    cut() {
-        // 遍历所有命名空间
-        for (const namespace in this.root) {
-            const snippets = this.root[namespace];
-            const newSnippets: Snippet[] = [];
-
-            // 只处理 RAW 类型的代码片段
-            for (const snippet of snippets) {
-                if (snippet.type !== SnippetType.RAW) {
-                    newSnippets.push(snippet);
-                    continue;
-                }
-
-                const lines = snippet.code.split('\n');
-                let currentCode = '';
-                let isInInjBlock = false;
-
-                for (const line of lines) {
-                    const trimmedLine = line.trim();
-
-                    if (trimmedLine === '=') {
-                        if (currentCode) {
-                            newSnippets.push({
-                                id: randomCode(8),
-                                filename: snippet.filename,
-                                type: isInInjBlock ? SnippetType.INJ : SnippetType.MC,
-                                code: currentCode.trim(),
-                                next: null
-                            });
-                            currentCode = '';
-                        }
-                        isInInjBlock = !isInInjBlock;
-                    } else if (trimmedLine) {
-                        currentCode += line + '\n';
-                    }
-                }
-
-                if (currentCode) {
-                    newSnippets.push({
-                        id: randomCode(8),
-                        filename: snippet.filename,
-                        type: isInInjBlock ? SnippetType.INJ : SnippetType.MC,
-                        code: currentCode.trim(),
-                        next: null
-                    });
-                }
-            }
-
-            this.root[namespace] = newSnippets;
-        }
-    }
 }
+
+new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/GC/src")
