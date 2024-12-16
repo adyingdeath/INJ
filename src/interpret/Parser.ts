@@ -49,11 +49,14 @@ export class Parser {
             const action = this.previous().lexeme;
             switch (action) {
                 case 'if':
+                case 'elif':
                     return this.ifStatement();
                 case 'while':
                     return this.whileStatement();
                 case 'for':
                     return this.forStatement();
+                case 'else':
+                    throw this.error(this.previous(), "Unexpected 'else' without matching 'if'");
             }
         }
 
@@ -81,29 +84,41 @@ export class Parser {
     }
 
     private ifStatement(): IfStatement {
-        const startToken = this.previous(); // 'if' token
+        const startToken = this.previous(); // 'if' or 'elif' token
+        const isElif = startToken.lexeme === 'elif';
 
-        this.consume(TokenType.LEFT_PAREN, "Expected '(' after 'if'.");
+        this.consume(TokenType.LEFT_PAREN, `Expected '(' after '${isElif ? 'elif' : 'if'}'.`);
         const condition = this.parseCondition();
         this.consume(TokenType.RIGHT_PAREN, "Expected ')' after condition.");
 
         // Skip EOL before '{'
         while (this.match(TokenType.EOL)) {}
         
-        this.consume(TokenType.LEFT_BRACE, "Expected '{' after if condition.");
+        this.consume(TokenType.LEFT_BRACE, `Expected '{' after ${isElif ? 'elif' : 'if'} condition.`);
         const consequent = this.block();
 
         let alternate: Statement[] | undefined;
         
-        // Skip EOL tokens before checking for 'else'
+        // Skip EOL tokens before checking for 'else' or 'elif'
         while (this.match(TokenType.EOL)) {}
         
-        if (this.match(TokenType.ACTION) && this.previous().lexeme === 'else') {
-            // Skip EOL before '{'
-            while (this.match(TokenType.EOL)) {}
-            
-            this.consume(TokenType.LEFT_BRACE, "Expected '{' after 'else'.");
-            alternate = this.block();
+        // 检查下一个token是否是else或elif
+        if (this.check(TokenType.ACTION)) {
+            const nextToken = this.peek();
+            if (nextToken.lexeme === 'else' || nextToken.lexeme === 'elif') {
+                this.advance(); // 消费掉else或elif token
+                
+                if (nextToken.lexeme === 'else') {
+                    // Skip EOL before '{'
+                    while (this.match(TokenType.EOL)) {}
+                    
+                    this.consume(TokenType.LEFT_BRACE, "Expected '{' after 'else'.");
+                    alternate = this.block();
+                } else { // elif
+                    // 直接递归处理elif，不需要额外的处理
+                    alternate = [this.ifStatement()];
+                }
+            }
         }
 
         return {

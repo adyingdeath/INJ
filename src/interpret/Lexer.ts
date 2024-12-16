@@ -142,6 +142,7 @@ export class Lexer {
     private isActionPattern(): boolean {
         let pos = this.current;
         let foundAction = false;
+        let actionStart = pos;
         
         while (pos < this.source.length) {
             const c = this.source.charAt(pos);
@@ -152,12 +153,19 @@ export class Lexer {
             
             if (!foundAction && this.isAlpha(c)) {
                 foundAction = true;
+                actionStart = pos;
             } else if (foundAction) {
                 // Check for all three patterns:
                 // 1. action(...)
                 // 2. action{...}
                 // 3. action()
                 if (c === '(' || c === '{') {
+                    // 检查是否是特殊action（if, elif, while, for）
+                    const actionName = this.source.substring(actionStart, pos).trim();
+                    if (actionName === 'if' || actionName === 'elif' || 
+                        actionName === 'while' || actionName === 'for') {
+                        return true;
+                    }
                     return true;
                 } else if (!this.isWhitespace(c) && !this.isAlphaNumeric(c)) {
                     return false;
@@ -201,8 +209,8 @@ export class Lexer {
                 this.scanForParams();
                 break;
             case 'if':
+            case 'elif':  // 确保elif和if使用相同的处理逻辑
             case 'while':
-            case 'elif':
                 this.scanLogicParams();
                 break;
         }
