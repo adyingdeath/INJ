@@ -70,6 +70,15 @@ export class Lexer {
             return;
         }
 
+        // Skip other whitespace
+        if (this.isWhitespace(this.peek())) {
+            while (this.isWhitespace(this.peek())) {
+                this.advance();
+            }
+            this.start = this.current;
+            return;  // 直接返回，不生成token
+        }
+
         // If we're at the start of a line
         if (this.isStartOfLine()) {
             // Check for JS code (ends with semicolon)
@@ -97,7 +106,11 @@ export class Lexer {
             case '|': this.addToken(TokenType.OR); break;
             case '!': this.addToken(TokenType.NOT); break;
             default:
-                this.scanAction();
+                if (this.isAlpha(c)) {
+                    this.scanAction();
+                } else {
+                    throw new Error(`Unexpected character '${c}' at line ${this.line}`);
+                }
                 break;
         }
     }
