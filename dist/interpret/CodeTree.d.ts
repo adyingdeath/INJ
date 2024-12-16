@@ -8,10 +8,13 @@ export interface Snippet {
     filename: string;
     type: SnippetType;
     code: string;
+    next: Snippet | null;
 }
 export default class CodeTree {
-    private snippet;
+    private root;
     constructor(filename: string, code: string);
+    private scanDirectory;
+    private scanFunctionsDirectory;
     cut(): void;
 }
 export {};

@@ -12,7 +12,8 @@
     "removeComments": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "src/parser.js"
   ],
   "exclude": [
     "node_modules",

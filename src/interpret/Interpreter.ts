@@ -1,5 +1,4 @@
 import CommandTree from './CommandTree.js';
-import * as defaultActions from '../actions/default.js';
 import { Snippet } from './CodeTree.js';
 
 export class Interpreter {

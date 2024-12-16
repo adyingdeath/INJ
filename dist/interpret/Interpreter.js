@@ -1,4 +1,3 @@
-import * as defaultActions from '../actions/default.js';
 export class Interpreter {
     actions;
     constructor() {
