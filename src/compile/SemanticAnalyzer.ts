@@ -3,16 +3,20 @@ import {
     IfStatement, WhileStatement, ForStatement, Expression
 } from './AST.js';
 
-// 添加 isolated-vm 导入
+// Import isolated-vm for JavaScript code validation
 import ivm from 'isolated-vm';
 
-// 用于记录分析过程中的上下文信息
+/**
+ * Context interface for storing analysis state
+ */
 interface Context {
     currentScope: Scope;
     errors: SemanticError[];
 }
 
-// 作用域类,用于管理变量和函数的作用域
+/**
+ * Scope class for managing variable and function scopes
+ */
 class Scope {
     private parent: Scope | null;
     private declarations: Map<string, Declaration>;
@@ -22,6 +26,10 @@ class Scope {
         this.declarations = new Map();
     }
 
+    /**
+     * Declare a new variable or function in current scope
+     * @throws {Error} If name is already declared in current scope
+     */
     declare(name: string, type: DeclarationType): void {
         if (this.declarations.has(name)) {
             throw new Error(`Duplicate declaration: ${name}`);
@@ -29,6 +37,10 @@ class Scope {
         this.declarations.set(name, { name, type });
     }
 
+    /**
+     * Resolve a name in current scope or parent scopes
+     * @returns Declaration if found, null otherwise
+     */
     resolve(name: string): Declaration | null {
         const declaration = this.declarations.get(name);
         if (declaration) return declaration;
@@ -37,16 +49,20 @@ class Scope {
     }
 }
 
-// 声明类型
+// Declaration types
 type DeclarationType = 'variable' | 'function';
 
-// 声明接口
+/**
+ * Interface for variable and function declarations
+ */
 interface Declaration {
     name: string;
     type: DeclarationType;
 }
 
-// 语义错误类
+/**
+ * Class representing a semantic error during analysis
+ */
 class SemanticError {
     constructor(
         public node: ASTNode,
@@ -58,6 +74,9 @@ class SemanticError {
     }
 }
 
+/**
+ * Semantic analyzer for validating program structure and semantics
+ */
 export class SemanticAnalyzer {
     private context: Context;
     private isolate: ivm.Isolate;
@@ -67,18 +86,21 @@ export class SemanticAnalyzer {
             currentScope: new Scope(),
             errors: []
         };
-        // Initialize isolate with 8MB memory limit
+        // Initialize isolate with 8MB memory limit for JS code validation
         this.isolate = new ivm.Isolate({ memoryLimit: 8 });
     }
 
-    // 主分析方法
+    /**
+     * Main analysis entry point
+     * @returns Array of semantic errors found during analysis
+     */
     analyze(program: Program): SemanticError[] {
         this.visitProgram(program);
         return this.context.errors;
     }
 
     private visitProgram(program: Program) {
-        // 为程序创建全局作用域
+        // Create global scope for the program
         this.context.currentScope = new Scope();
         
         for (const statement of program.body) {
@@ -87,6 +109,7 @@ export class SemanticAnalyzer {
     }
 
     private visitStatement(statement: Statement) {
+        // Visit different statement types
         switch (statement.type) {
             case 'MinecraftCommand':
                 this.visitMinecraftCommand(statement);
@@ -107,17 +130,19 @@ export class SemanticAnalyzer {
     }
 
     private visitMinecraftCommand(command: MinecraftCommand) {
-        // 检查Minecraft命令的语义
-        
+        // TODO: Add Minecraft command validation logic
     }
 
+    /**
+     * Validate JavaScript code in isolated environment
+     */
     private async checkJSCode(code: string, node: ASTNode): Promise<void> {
         const context = await this.isolate.createContext();
         const jail = context.global;
         const isolate = this.isolate;
 
         try {
-            // Create a new context with 5ms timeout
+            // Run JS code with 5ms timeout for safety
             const script = await isolate.compileScript(code);
             await script.run(context, { timeout: 5 });
         } catch (e: any) {
@@ -126,89 +151,93 @@ export class SemanticAnalyzer {
     }
 
     private visitJSCode(code: JSCode) {
-        // 检查JS代码的语义
+        // Validate JavaScript code semantics
         this.checkJSCode(code.code, code);
     }
 
     private visitIfStatement(statement: IfStatement) {
-        // 检查条件表达式
+        // Check condition expression
         this.checkCondition(statement.condition, statement);
 
-        // 创建新的作用域
+        // Create new scope for if block
         const previousScope = this.context.currentScope;
         this.context.currentScope = new Scope(previousScope);
 
-        // 访问consequent语句
+        // Visit consequent statements
         for (const stmt of statement.consequent) {
             this.visitStatement(stmt);
         }
 
-        // 如果有else分支，也要访问
+        // Handle else block if present
         if (statement.alternate) {
-            // 为else分支创建新的作用域
+            // Create new scope for else block
             this.context.currentScope = new Scope(previousScope);
             for (const stmt of statement.alternate) {
                 this.visitStatement(stmt);
             }
         }
 
-        // 恢复原来的作用域
+        // Restore previous scope
         this.context.currentScope = previousScope;
     }
 
     private visitWhileStatement(statement: WhileStatement) {
-        // 检查循环条件
+        // Validate loop condition
         this.checkCondition(statement.condition, statement);
 
-        // 创建新的作用域
+        // Create new scope for loop body
         const previousScope = this.context.currentScope;
         this.context.currentScope = new Scope(previousScope);
 
-        // 访问循环体
+        // Visit loop body statements
         for (const stmt of statement.body) {
             this.visitStatement(stmt);
         }
 
-        // 恢复原��的作用域
+        // Restore previous scope
         this.context.currentScope = previousScope;
     }
 
     private visitForStatement(statement: ForStatement) {
-        // 检查for循环参数
+        // Validate for loop parameters
         if (!statement.params.trim()) {
             this.addError(statement, "Empty for loop parameters");
         }
 
+        // Check if for loop syntax is valid
         this.checkJSCode(`for (${statement.params}) {}`, statement);
 
-        // 创建新的作用域
+        // Create new scope for loop body
         const previousScope = this.context.currentScope;
         this.context.currentScope = new Scope(previousScope);
 
-        // 访问循环体
+        // Visit loop body statements
         for (const stmt of statement.body) {
             this.visitStatement(stmt);
         }
 
-        // 恢复原来的作用域
+        // Restore previous scope
         this.context.currentScope = previousScope;
     }
 
+    /**
+     * Validate condition expressions for control structures
+     */
     private checkCondition(condition: Expression, node: ASTNode) {
-        // 检查Minecraft条件
+        // Validate Minecraft condition
         if (condition.minecraft) {
-            // 这里可以添加更多的Minecraft命令验证逻辑
+            // TODO: Add more Minecraft command validation logic
             if (!condition.minecraft.trim()) {
                 this.addError(node, "Empty Minecraft condition");
             }
         }
 
-        // 检查JS条件
+        // Validate JavaScript condition
         if (condition.js) {
             this.checkJSCode(`if (${condition.js}) {}`, node);
         }
 
-        // 检查逻辑组合
+        // Check logical operators
         if (condition.logic && !condition.minecraft && !condition.js) {
             this.addError(node, "Logic operator used without conditions");
         }

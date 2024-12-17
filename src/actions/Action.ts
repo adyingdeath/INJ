@@ -8,4 +8,4 @@ export abstract class Action {
 	 * @param body 代码块内容，可能为空
 	 */
 	abstract execute(params: string, body?: string[]): string[];
-} 
+}

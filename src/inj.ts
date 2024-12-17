@@ -1,10 +1,10 @@
 import minimist from "minimist";
-import CodeTree from "./interpret/CodeTree.js";
-import { Interpreter } from "./interpret/Interpreter.js";
-import { Lexer } from "./interpret/Lexer.js";
+import CodeTree from "./compile/CodeTree.js";
+import { Compiler } from "./compile/Compiler.js";
+import { Lexer } from "./compile/Lexer.js";
 import fs from "fs";
-import { Parser } from "./interpret/Parser.js";
-import { SemanticAnalyzer } from "./interpret/SemanticAnalyzer.js";
+import { Parser } from "./compile/Parser.js";
+import { SemanticAnalyzer } from "./compile/SemanticAnalyzer.js";
 
 const args = minimist(process.argv.slice(2));
 
