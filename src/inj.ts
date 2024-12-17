@@ -4,6 +4,7 @@ import { Interpreter } from "./interpret/Interpreter.js";
 import { Lexer } from "./interpret/Lexer.js";
 import fs from "fs";
 import { Parser } from "./interpret/Parser.js";
+import { SemanticAnalyzer } from "./interpret/SemanticAnalyzer.js";
 
 const args = minimist(process.argv.slice(2));
 
@@ -40,13 +41,15 @@ console.dir(codeTree, {
 }); */
 
 let tokens = new Lexer(`execute as @s run function gc:test
+execute as @s run function gc:test
 if("block ~ ~ ~ stone") {
 	say 1
 }else{
 	tellraw @a "Hello World"
 }
+add();
 for(let i of [1,2,3,4]) {
-	while(1 || "1" != 1 && "block ~ ~ ~ stone") {
+	while(1 || a == 1 && "block ~ ~ ~ stone") {
         let i = 1;
 		say 1
 	}
@@ -61,3 +64,7 @@ let program = new Parser(tokens).parse();
 console.dir(program, {
     depth: null
 });
+
+let err = new SemanticAnalyzer().analyze(program);
+
+console.log(err);
