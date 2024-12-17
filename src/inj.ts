@@ -1,5 +1,5 @@
 import minimist from "minimist";
-import CodeTree from "./compile/CodeTree.js";
+import CodeTree, { SnippetType } from "./compile/CodeTree.js";
 import { Compiler } from "./compile/Compiler.js";
 import { Lexer } from "./compile/Lexer.js";
 import fs from "fs";
@@ -40,10 +40,13 @@ console.dir(codeTree, {
     showHidden: true 
 }); */
 
-let tokens = new Lexer(`execute as @s run function gc:test
+let source = `execute as @s run function gc:test
 execute as @s run function gc:test
-if("block ~ ~ ~ stone") {
+if("block ~ ~ ~ stone" && a != 1) {
 	say 1
+    if(1 == 1) {
+        tellraw @a "123"
+    }
 }else{
 	tellraw @a "Hello World"
 }
@@ -55,7 +58,20 @@ for(let i of [1,2,3,4]) {
 	}
 	setblock ~ ~ ~ stone
 }
-execute as @s run function gc:gogo`).scanTokens();
+execute as @s run function gc:gogo`;
+
+new Compiler().compile({
+    type: SnippetType.RAW,
+    filename: "test",
+    code: source,
+    id: "123",
+    namespace: "go",
+    next: null
+});
+
+
+
+/* let tokens = new Lexer(source).scanTokens();
 
 console.log(tokens);
 
@@ -67,4 +83,4 @@ console.dir(program, {
 
 let err = new SemanticAnalyzer().analyze(program);
 
-console.log(err);
+console.log(err); */

@@ -8,7 +8,7 @@ import path from "path";
 export enum SnippetType {
     RAW,  // Raw mcfunction code
     MC,   // Minecraft command
-    INJ,  // Injected code
+    JUMP, // Code for jumping
 }
 
 /**
@@ -16,6 +16,7 @@ export enum SnippetType {
  */
 export interface Snippet {
     id: string;
+    namespace: string;
     filename: string;
     type: SnippetType;
     code: string;
@@ -91,6 +92,7 @@ export default class CodeTree {
                 
                 this.root[namespace].push({
                     id: randomCode(8),
+                    namespace: namespace,
                     filename: filenameWithoutExt.replace(/\\/g, '/'), // Ensure forward slashes
                     type: SnippetType.RAW,
                     code: code,
@@ -99,4 +101,15 @@ export default class CodeTree {
             }
         }
     }
+}
+
+export enum NodeType {
+    MINECRAFT = 'MINECRAFT',
+    // ... other node types ...
+}
+
+export interface ASTNode {
+    type: NodeType;
+    value: string;
+    // ... other properties ...
 }
