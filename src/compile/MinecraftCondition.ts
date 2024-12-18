@@ -20,74 +20,57 @@ export class LogicExpression implements Expression {
     }
 
     private parseExpression(expression: string): Expression {
-        let expr = this.parseExpressionOnce(expression);
-        let simplified: Expression;
-        
-        // Keep simplifying until no more simplification is possible
-        do {
-            simplified = expr;
-            expr = this.simplifyExpression(expr);
-        } while (!this.isEqual(simplified, expr));
-        
-        return expr;
+        // 先构建完整的表达式树，不做任何化简
+        const expr = this.parseExpressionOnce(expression);
+        // 然后在对象层面进行化简
+        return this.simplifyExpression(expr);
     }
 
     private parseExpressionOnce(expression: string): Expression {
-        let positive = true;
-        
-        // Trim whitespace from both ends but preserve internal whitespace
+        // Remove initial whitespace but preserve internal whitespace
         expression = expression.trim();
-        
-        // Handle and simplify multiple negations
-        while (expression.startsWith('!')) {
+
+        // Handle negation first
+        let positive = true;
+        if (expression.startsWith('!')) {
             positive = !positive;
             expression = expression.slice(1).trim();
         }
-        
+
+        // Remove outer parentheses
         expression = this.removeOuterParentheses(expression);
 
-        // If after removing parentheses we still have negation, process it
-        if (expression.startsWith('!')) {
-            const subExpr = this.parseExpressionOnce(expression.slice(1));
-            return {
-                ...subExpr,
-                positive: !subExpr.positive
-            };
-        }
-
+        // Check for AND/OR operations
         const orParts = this.splitByOperator(expression, '||');
         if (orParts.length > 1) {
             const subExprs = orParts.map(part => this.parseExpressionOnce(part));
-            const flattenedExprs = this.flattenExpressions(subExprs, 'OR');
             return {
-                expression: flattenedExprs,
+                expression: subExprs,
                 type: 'OR',
-                positive
+                positive: positive
             };
         }
 
         const andParts = this.splitByOperator(expression, '&&');
         if (andParts.length > 1) {
             const subExprs = andParts.map(part => this.parseExpressionOnce(part));
-            const flattenedExprs = this.flattenExpressions(subExprs, 'AND');
             return {
-                expression: flattenedExprs,
+                expression: subExprs,
                 type: 'AND',
-                positive
+                positive: positive
             };
         }
 
-        // Handle all types of quotes for string literals
-        expression = expression.trim();
+        // Handle string literals
         const quoteMatch = expression.match(/^(['"`])(.*)\1$/);
         if (quoteMatch) {
-            expression = quoteMatch[2];  // Get the content inside quotes
+            expression = quoteMatch[2];
         }
 
         return {
             expression: expression,
             type: 'VAR',
-            positive
+            positive: positive
         };
     }
 
@@ -96,31 +79,34 @@ export class LogicExpression implements Expression {
             return expr;
         }
 
-        // Recursively simplify all sub-expressions
-        const subExprs = (expr.expression as Expression[]).map(e => {
-            const simplified = this.simplifyExpression(e);
-            // If parent is negative, flip the child's positive value
-            return expr.positive ? simplified : {
-                ...simplified,
-                positive: !simplified.positive
-            };
-        });
+        // 递归简化所有子表达式
+        let subExprs = (expr.expression as Expression[]).map(e => this.simplifyExpression(e));
+
+        // 处理否定
+        if (!expr.positive) {
+            subExprs = subExprs.map(e => ({
+                ...e,
+                positive: !e.positive
+            }));
+            // 应用德摩根定律
+            expr.type = expr.type === 'AND' ? 'OR' : 'AND';
+            expr.positive = true;
+        }
+
+        // 展平相同类型的嵌套表达式
+        subExprs = this.flattenExpressions(subExprs, expr.type!);
         
-        // Flatten nested expressions of the same type
-        const flattenedExprs = this.flattenExpressions(subExprs, expr.type!);
-        
-        // Remove duplicates
-        const uniqueExprs = this.removeDuplicates(flattenedExprs);
-        
-        // If only one sub-expression remains after simplification
-        if (uniqueExprs.length === 1) {
-            return uniqueExprs[0];
+        // 移除重复项
+        subExprs = this.removeDuplicates(subExprs);
+
+        // 如果只剩一个子表达式，直接返回它
+        if (subExprs.length === 1) {
+            return subExprs[0];
         }
 
         return {
-            expression: uniqueExprs,
+            expression: subExprs,
             type: expr.type,
-            // After handling negation in sub-expressions, parent should be positive
             positive: true
         };
     }
@@ -319,7 +305,7 @@ export class MinecraftCondition {
                 ${thenBlock}
             });`);
             if (elseBlock) {
-                items.splice(0, items.length - 1);
+                items.splice(0, items.length);
                 for(const item of this.logicExpression.expression as Expression[]) {
                     items.push(`${item.positive ? "unless" : "if"} ${item.expression}`);
                 }

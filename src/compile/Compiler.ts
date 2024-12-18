@@ -121,7 +121,6 @@ export class Compiler {
                     const condition = ifNode.condition;
                     const thenBlock = this.processBlock(ifNode.consequent);
                     const elseBlock = ifNode.alternate ? this.processBlock(ifNode.alternate) : '';
-                    console.log("condition.minecraft", condition.minecraft);
                     const minecraftCondition = condition.minecraft ? new MinecraftCondition(condition.minecraft).build(thenBlock, elseBlock ? elseBlock : undefined) : '';
                     
                     if (condition.logic === "AND") {

@@ -44,7 +44,7 @@ console.dir(codeTree, {
 
 let source = `execute as @s run function gc:test
 execute as @s run function gc:test
-if("block ~ ~ ~ stone" && "player @p 1" && a != 1) {
+if(!!"block ~ ~ ~ stone" && !"player @p 1" && a != 1) {
 	say 1
     if(1 == 1) {
         tellraw @a "123"

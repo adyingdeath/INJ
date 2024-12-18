@@ -198,16 +198,27 @@ export class Parser {
         let jsComponents: string[] = [];
         let logic: "AND" | "OR" | null = null;
         let lastLogic: "AND" | "OR" = "OR"; // Default to OR for single components
+        let nextIsNegated = false; // Track if next component should be negated
 
         while (!this.check(TokenType.RIGHT_PAREN) && !this.isAtEnd()) {
             const token = this.advance();
             
             switch (token.type) {
                 case TokenType.MINECRAFT_LOGIC:
-                    minecraftComponents.push(token.lexeme);
+                    // Add the component with proper negation and quotes
+                    minecraftComponents.push(
+                        (nextIsNegated ? '!"' : '"') + token.lexeme + '"'
+                    );
+                    nextIsNegated = false;
                     break;
                 case TokenType.JS_LOGIC:
-                    jsComponents.push(token.lexeme);
+                    // Add the component with proper negation
+                    jsComponents.push(
+                        (nextIsNegated ? '!(' : '') + 
+                        token.lexeme + 
+                        (nextIsNegated ? ')' : '')
+                    );
+                    nextIsNegated = false;
                     break;
                 case TokenType.AND:
                     if (minecraftComponents.length > 0 || jsComponents.length > 0) {
@@ -222,12 +233,7 @@ export class Parser {
                     }
                     break;
                 case TokenType.NOT:
-                    // Add NOT to the next expression
-                    if (this.peek().type === TokenType.MINECRAFT_LOGIC) {
-                        minecraftComponents.push('!');
-                    } else {
-                        jsComponents.push('!');
-                    }
+                    nextIsNegated = true;
                     break;
             }
         }
