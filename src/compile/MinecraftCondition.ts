@@ -117,6 +117,8 @@ export class MinecraftCondition {
                 this.convertExpression(part);
                 part.positive = !part.positive;
             });
+
+            expr.type = "AND";
         }
     }
 
