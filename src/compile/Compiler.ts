@@ -4,6 +4,7 @@ import { SemanticAnalyzer } from './SemanticAnalyzer.js';
 import { Snippet, ASTNode, NodeType, SnippetType } from './CodeTree.js';
 import { MinecraftCommand, Statement, IfStatement } from './AST.js';
 import ivm from 'isolated-vm';
+import { MinecraftCondition } from './MinecraftCondition.js';
 
 export class Compiler {
     private current: number = 0;
@@ -25,7 +26,7 @@ export class Compiler {
                 minecraft: function(commands) {
                     return { type: 'minecraft', commands: commands };
                 },
-                ifjump: function(condition, thenCommands, elseCommands) {
+                jump: function(condition, thenCommands, elseCommands) {
                     return { 
                         type: 'ifjump', 
                         condition: condition, 
@@ -120,17 +121,14 @@ export class Compiler {
                     const condition = ifNode.condition;
                     const thenBlock = this.processBlock(ifNode.consequent);
                     const elseBlock = ifNode.alternate ? this.processBlock(ifNode.alternate) : '';
+                    console.log("condition.minecraft", condition.minecraft);
+                    const minecraftCondition = condition.minecraft ? new MinecraftCondition(condition.minecraft).build(thenBlock, elseBlock ? elseBlock : undefined) : '';
                     
                     if (condition.logic === "AND") {
                         if (elseBlock) {
                             result.push(`
                                 if(${condition.js}){
-                                    inj.ifjump("${condition.minecraft}", () => {
-                                        ${thenBlock}
-                                    });
-                                    inj.ifjump("!${condition.minecraft}", () => {
-                                        ${elseBlock}
-                                    });
+                                    ${minecraftCondition}
                                 } else {
                                     ${elseBlock}
                                 }
@@ -138,7 +136,7 @@ export class Compiler {
                         } else {
                             result.push(`
                                 if(${condition.js}){
-                                    inj.ifjump("${condition.minecraft}", () => {
+                                    inj.jump("${condition.minecraft}", () => {
                                         ${thenBlock}
                                     });
                                 }
@@ -149,7 +147,7 @@ export class Compiler {
                             if(${condition.js}){
                                 ${thenBlock}
                             } else {
-                                inj.ifjump("${condition.minecraft}", () => {
+                                inj.jump("${condition.minecraft}", () => {
                                     ${thenBlock}
                                 }, () => {
                                     ${elseBlock}
@@ -159,7 +157,7 @@ export class Compiler {
                     } else {
                         if (condition.minecraft) {
                             result.push(`
-                                inj.ifjump("${condition.minecraft}", () => {
+                                inj.jump("${condition.minecraft}", () => {
                                     ${thenBlock}
                                 });
                             `);

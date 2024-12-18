@@ -13,7 +13,6 @@ export class LogicExpression implements Expression {
     public positive: boolean;
 
     constructor(input: string) {
-        input = input.replace(/\s+/g, '');
         const parsed = this.parseExpression(input);
         this.expression = parsed.expression;
         this.type = parsed.type;
@@ -36,10 +35,13 @@ export class LogicExpression implements Expression {
     private parseExpressionOnce(expression: string): Expression {
         let positive = true;
         
+        // Trim whitespace from both ends but preserve internal whitespace
+        expression = expression.trim();
+        
         // Handle and simplify multiple negations
         while (expression.startsWith('!')) {
             positive = !positive;
-            expression = expression.slice(1);
+            expression = expression.slice(1).trim();
         }
         
         expression = this.removeOuterParentheses(expression);
@@ -73,6 +75,13 @@ export class LogicExpression implements Expression {
                 type: 'AND',
                 positive
             };
+        }
+
+        // Handle all types of quotes for string literals
+        expression = expression.trim();
+        const quoteMatch = expression.match(/^(['"`])(.*)\1$/);
+        if (quoteMatch) {
+            expression = quoteMatch[2];  // Get the content inside quotes
         }
 
         return {
@@ -205,22 +214,41 @@ export class LogicExpression implements Expression {
         const parts: string[] = [];
         let current = '';
         let parenCount = 0;
+        let inQuote = false;
+        let quoteChar = '';
         
         for (let i = 0; i < expr.length; i++) {
-            if (expr[i] === '(') parenCount++;
-            else if (expr[i] === ')') parenCount--;
+            const char = expr[i];
             
-            if (parenCount === 0 && expr.slice(i).startsWith(operator)) {
-                parts.push(current);
+            // Handle quotes
+            if ((char === '"' || char === "'" || char === '`') && 
+                (i === 0 || expr[i-1] !== '\\')) {
+                if (!inQuote) {
+                    inQuote = true;
+                    quoteChar = char;
+                } else if (char === quoteChar) {
+                    inQuote = false;
+                }
+            }
+            
+            // Only count parentheses when not in quotes
+            if (!inQuote) {
+                if (char === '(') parenCount++;
+                else if (char === ')') parenCount--;
+            }
+            
+            // Only split when not in quotes and not inside parentheses
+            if (!inQuote && parenCount === 0 && expr.slice(i).startsWith(operator)) {
+                parts.push(current.trim());
                 current = '';
                 i += operator.length - 1;
                 continue;
             }
             
-            current += expr[i];
+            current += char;
         }
         
-        if (current) parts.push(current);
+        if (current) parts.push(current.trim());
         return parts.length > 0 ? parts : [expr];
     }
 }
@@ -268,11 +296,37 @@ export class MinecraftCondition {
         return `(${joined})`;
     }
 
-    public build(): string {
+    public build(thenBlock: string, elseBlock?: string): string {
         let commands: string[] = [];
+        console.log(this.logicExpression);
         if(this.logicExpression.type === "VAR") {
             // If it is only a single variable, we directly jump according to it.
-
+            commands.push(`inj.jump("${this.logicExpression.positive ? "if" : "unless"} ${this.logicExpression.expression}", () => {
+                ${thenBlock}
+            });`);
+            if (elseBlock) {
+                commands.push(`inj.jump("${this.logicExpression.positive ? "unless" : "if"} ${this.logicExpression.expression}", () => {
+                    ${elseBlock}
+                });`);
+            }
+        } else if(this.logicExpression.type === "AND") {
+            // If it is an AND of multiple variables, process each one.
+            let items: string[] = [];
+            for(const item of this.logicExpression.expression as Expression[]) {
+                items.push(`${item.positive ? "if" : "unless"} ${item.expression}`);
+            }
+            commands.push(`inj.jump("${items.join(" ")}", () => {
+                ${thenBlock}
+            });`);
+            if (elseBlock) {
+                items.splice(0, items.length - 1);
+                for(const item of this.logicExpression.expression as Expression[]) {
+                    items.push(`${item.positive ? "unless" : "if"} ${item.expression}`);
+                }
+                commands.push(`inj.jump("${items.join(" ")}", () => {
+                    ${elseBlock}
+                });`);
+            }
         }
         return commands.join("\n");
     }
