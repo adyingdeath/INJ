@@ -207,7 +207,7 @@ export class Parser {
                 case TokenType.MINECRAFT_LOGIC:
                     // Add the component with proper negation and quotes
                     minecraftComponents.push(
-                        (nextIsNegated ? '!"' : '"') + token.lexeme + '"'
+                        (nextIsNegated ? '!' : '') + token.lexeme
                     );
                     nextIsNegated = false;
                     break;

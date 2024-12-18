@@ -292,19 +292,9 @@ export class Lexer {
             this.advance();
         }
         
-        // Handle NOT operator
-        if (this.peek() === '!') {
-            this.advance();
-            this.addToken(TokenType.NOT);
-            // Skip whitespace after NOT
-            while (this.isWhitespace(this.peek())) {
-                this.advance();
-            }
-        }
-        
         this.start = this.current;
         
-        // Analyze the complete logic variable
+        // Analyze the complete logic variable, including any NOT operators
         this.scanLogicVariable();
         
         // Skip whitespace
@@ -333,6 +323,13 @@ export class Lexer {
         while (!this.isAtEnd()) {
             const c = this.peek();
             
+            // Check for logical operators before any content is added
+            if (!isString && parenCount === 0 && 
+                ((c === '&' && this.peekNext() === '&') || 
+                 (c === '|' && this.peekNext() === '|'))) {
+                break;
+            }
+            
             // Handle string literals
             if ((c === '"' || c === "'" || c === '`') && !isString) {
                 isString = true;
@@ -359,10 +356,6 @@ export class Lexer {
                 } else if (c === ')') {
                     if (parenCount === 0) break;
                     parenCount--;
-                } else if (parenCount === 0 && 
-                          ((c === '&' && this.peekNext() === '&') || 
-                           (c === '|' && this.peekNext() === '|'))) {
-                    break;
                 }
                 content += this.advance();
             }
@@ -376,7 +369,7 @@ export class Lexer {
         
         this.tokens.push({
             type: isMinecraftLogic ? TokenType.MINECRAFT_LOGIC : TokenType.JS_LOGIC,
-            lexeme: isMinecraftLogic ? content.slice(1, -1) : content,
+            lexeme: content,  // Keep all content including parentheses and NOT operators
             line: this.line,
             start: this.start,
             end: this.current
@@ -384,12 +377,14 @@ export class Lexer {
     }
 
     private isMinecraftLogicContent(content: string): boolean {
-        // Check if the content is a pure string literal
-        const trimmed = content.trim();
-        if (trimmed.length < 2) return false;
+        // Remove all NOT operators and parentheses
+        const stripped = content.replace(/[!()]/g, '').trim();
         
-        const firstChar = trimmed[0];
-        const lastChar = trimmed[trimmed.length - 1];
+        // If after stripping, we have a pure string literal, it's Minecraft logic
+        if (stripped.length < 2) return false;
+        
+        const firstChar = stripped[0];
+        const lastChar = stripped[stripped.length - 1];
         
         // Check if it's wrapped in matching quotes
         if ((firstChar === '"' && lastChar === '"') ||
@@ -397,7 +392,7 @@ export class Lexer {
             (firstChar === '`' && lastChar === '`')) {
             
             // Check if there's any non-string content
-            const inner = trimmed.slice(1, -1);
+            const inner = stripped.slice(1, -1);
             // Make sure there are no unescaped quotes of the same type
             const quoteCount = (inner.match(new RegExp(`[^\\\\]${firstChar}`, 'g')) || []).length;
             return quoteCount === 0;
