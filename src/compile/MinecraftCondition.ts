@@ -20,9 +20,9 @@ export class LogicExpression implements Expression {
     }
 
     private parseExpression(expression: string): Expression {
-        // 先构建完整的表达式树，不做任何化简
+        // First build complete expression tree without any simplification
         const expr = this.parseExpressionOnce(expression);
-        // 然后在对象层面进行化简
+        // Then simplify at object level
         return this.simplifyExpression(expr);
     }
 
@@ -32,7 +32,7 @@ export class LogicExpression implements Expression {
 
         // Handle negation first
         let positive = true;
-        if (expression.startsWith('!')) {
+        while (expression.startsWith('!')) {
             positive = !positive;
             expression = expression.slice(1).trim();
         }
@@ -61,12 +61,7 @@ export class LogicExpression implements Expression {
             };
         }
 
-        // Handle string literals
-        const quoteMatch = expression.match(/^(['"`])(.*)\1$/);
-        if (quoteMatch) {
-            expression = quoteMatch[2];
-        }
-
+        // Handle string literals - keep quotes in the expression
         return {
             expression: expression,
             type: 'VAR',
@@ -76,30 +71,38 @@ export class LogicExpression implements Expression {
 
     private simplifyExpression(expr: Expression): Expression {
         if (expr.type === 'VAR') {
+            // Handle string literals at simplification stage
+            const quoteMatch = (expr.expression as string).match(/^(['"`])(.*)\1$/);
+            if (quoteMatch) {
+                return {
+                    ...expr,
+                    expression: quoteMatch[2]
+                };
+            }
             return expr;
         }
 
-        // 递归简化所有子表达式
+        // Recursively simplify all sub-expressions
         let subExprs = (expr.expression as Expression[]).map(e => this.simplifyExpression(e));
 
-        // 处理否定
+        // Handle negation
         if (!expr.positive) {
             subExprs = subExprs.map(e => ({
                 ...e,
                 positive: !e.positive
             }));
-            // 应用德摩根定律
+            // Apply De Morgan's laws
             expr.type = expr.type === 'AND' ? 'OR' : 'AND';
             expr.positive = true;
         }
 
-        // 展平相同类型的嵌套表达式
+        // Flatten nested expressions of same type
         subExprs = this.flattenExpressions(subExprs, expr.type!);
         
-        // 移除重复项
+        // Remove duplicates
         subExprs = this.removeDuplicates(subExprs);
 
-        // 如果只剩一个子表达式，直接返回它
+        // If only one sub-expression remains, return it
         if (subExprs.length === 1) {
             return subExprs[0];
         }
