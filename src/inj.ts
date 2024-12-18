@@ -86,6 +86,6 @@ console.dir(program, {
 let err = new SemanticAnalyzer().analyze(program);
 
 console.log(err); */
-const logic = new MinecraftCondition(`!"A"`).toAndNotForm();
+const logic = new MinecraftCondition(`!(!(!!("A" && !"B") || "C"))`);
 //const logic = new LogicExpression(`("A" && !"B") || "C"`);
 console.dir(logic, { depth: null });
