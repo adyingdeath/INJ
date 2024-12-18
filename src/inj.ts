@@ -5,6 +5,8 @@ import { Lexer } from "./compile/Lexer.js";
 import fs from "fs";
 import { Parser } from "./compile/Parser.js";
 import { SemanticAnalyzer } from "./compile/SemanticAnalyzer.js";
+import { LogicExpression } from "./compile/MinecraftCondition.js";
+import { MinecraftCondition } from "./compile/MinecraftCondition.js";
 
 const args = minimist(process.argv.slice(2));
 
@@ -42,7 +44,7 @@ console.dir(codeTree, {
 
 let source = `execute as @s run function gc:test
 execute as @s run function gc:test
-if("block ~ ~ ~ stone" && a != 1) {
+if("block ~ ~ ~ stone" || "player @p" && a != 1) {
 	say 1
     if(1 == 1) {
         tellraw @a "123"
@@ -60,14 +62,14 @@ for(let i of [1,2,3,4]) {
 }
 execute as @s run function gc:gogo`;
 
-new Compiler().compile({
+/* new Compiler().compile({
     type: SnippetType.RAW,
     filename: "test",
     code: source,
     id: "123",
     namespace: "go",
     next: null
-});
+}); */
 
 
 
@@ -84,3 +86,6 @@ console.dir(program, {
 let err = new SemanticAnalyzer().analyze(program);
 
 console.log(err); */
+const logic = new MinecraftCondition(`("A" && !"B") || "C"`).toAndNotForm();
+//const logic = new LogicExpression(`("A" && !"B") || "C"`);
+console.dir(logic, { depth: null });
