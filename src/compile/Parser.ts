@@ -194,53 +194,54 @@ export class Parser {
     }
 
     private parseCondition(): Expression {
-        let minecraft = '';
-        let js = '';
-        let logic: "AND" | "OR" | null = null;
+        let minecraftComponents: string[] = [];
         let jsComponents: string[] = [];
+        let logic: "AND" | "OR" | null = null;
+        let lastLogic: "AND" | "OR" = "OR"; // Default to OR for single components
 
         while (!this.check(TokenType.RIGHT_PAREN) && !this.isAtEnd()) {
             const token = this.advance();
             
             switch (token.type) {
                 case TokenType.MINECRAFT_LOGIC:
-                    minecraft = token.lexeme;
+                    minecraftComponents.push(token.lexeme);
                     break;
                 case TokenType.JS_LOGIC:
                     jsComponents.push(token.lexeme);
                     break;
                 case TokenType.AND:
-                    if (minecraft || js) {
+                    if (minecraftComponents.length > 0 || jsComponents.length > 0) {
                         logic = "AND";
+                        lastLogic = "AND";
                     }
                     break;
                 case TokenType.OR:
-                    // 如果是OR，将前面的JS组件用||连接
-                    if (jsComponents.length > 0) {
-                        js = jsComponents.join(' || ');
-                        jsComponents = [];
-                    }
-                    if (minecraft || js) {
+                    if (minecraftComponents.length > 0 || jsComponents.length > 0) {
                         logic = "OR";
+                        lastLogic = "OR";
                     }
                     break;
                 case TokenType.NOT:
-                    // 为下一个表达式添加NOT
-                    jsComponents.push('!');
+                    // Add NOT to the next expression
+                    if (this.peek().type === TokenType.MINECRAFT_LOGIC) {
+                        minecraftComponents.push('!');
+                    } else {
+                        jsComponents.push('!');
+                    }
                     break;
             }
         }
 
-        // 处理剩余的JS组件
-        if (jsComponents.length > 0) {
-            if (js) {
-                // 如果已经有js内容，根据最后的logic类型连接
-                js += logic === "AND" ? ' && ' : ' || ';
-            }
-            js += jsComponents.join(' || ');
-        }
+        // Process the components
+        const minecraft = minecraftComponents.length > 0 
+            ? minecraftComponents.join(lastLogic === "AND" ? ' && ' : ' || ')
+            : '';
+            
+        const js = jsComponents.length > 0
+            ? jsComponents.join(lastLogic === "AND" ? ' && ' : ' || ')
+            : '';
 
-        // 如果只有一种类型的逻辑，将logic设为null
+        // If only one type of logic exists, set logic to null
         if (!minecraft || !js) {
             logic = null;
         }
