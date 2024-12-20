@@ -42,7 +42,7 @@ console.dir(codeTree, {
     showHidden: true 
 }); */
 
-let source = `execute as @s run function gc:test
+/* let source = `execute as @s run function gc:test
 execute as @s run function gc:test
 if(!!"block ~ ~ ~ stone" && !"player @p 1" && a != 1) {
 	say 1
@@ -60,7 +60,13 @@ for(let i of [1,2,3,4]) {
 	}
 	setblock ~ ~ ~ stone
 }
-execute as @s run function gc:gogo`;
+execute as @s run function gc:gogo`; */
+
+let source = `
+if(!!"block ~ ~ ~ stone" && !"player @p 1" && a != 1) {
+	say 1
+}else{
+}`;
 
 new Compiler().compile({
     type: SnippetType.RAW,
