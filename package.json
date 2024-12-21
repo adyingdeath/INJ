@@ -1,11 +1,15 @@
 {
   "type": "module",
   "dependencies": {
-    "acorn": "^8.14.0",
+    "@babel/core": "^7.26.0",
+    "@babel/generator": "^7.26.3",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/types": "^7.26.3",
     "isolated-vm": "^5.0.3",
     "minimist": "^1.2.8"
   },
   "devDependencies": {
+    "@types/babel__core": "^7.20.5",
     "@types/minimist": "^1.2.5",
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2"
