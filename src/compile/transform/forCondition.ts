@@ -1,6 +1,28 @@
 import { Program, Node, Expression, LogicalExpression, UnaryExpression, MemberExpression, CallExpression, IfStatement } from "@babel/types";
 import * as t from "@babel/types";
 
+// Add these type definitions after the imports
+interface LogicUnit {
+    type: "Var" | "Ref";
+    name?: string;
+    ref?: number;
+    positive: boolean;
+}
+
+interface LogicVar extends LogicUnit {
+    type: "Var";
+    name: string;
+}
+
+interface LogicRef extends LogicUnit {
+    type: "Ref";
+    ref: number;
+}
+
+interface LogicSegment {
+    vars: LogicUnit[];
+}
+
 // Function to apply De Morgan's Laws and transform all the OR operations to AND+NOT operations.
 function applyDeMorganLaws(expr: Expression): Expression {
     if (!t.isLogicalExpression(expr)) {
@@ -115,6 +137,58 @@ function isMinecraftCondition(expr: Expression): boolean {
     return false;
 }
 
+/**
+ * Decompose a logical expression into a list of segments.
+ * Each segment is the AND of a list of variables(or negated variables).
+ * @param expr - The logical expression to decompose.
+ * @returns An array of segments, each containing a list of variables.
+ */
+function segmentLogic(expr: Expression): LogicSegment[] {
+    const segments: LogicSegment[] = [];
+
+    // Helper function to process an expression and return its reference
+    function processExpr(expr: Expression, parent: LogicSegment, positive: boolean): void {
+        if (t.isStringLiteral(expr)) {
+            // If the expression is a string literal, add it directly to segments
+            parent.vars.push({
+                type: "Var",
+                name: expr.value,
+                positive: positive
+            });
+        } else if (t.isUnaryExpression(expr) && expr.operator === '!') {
+            if (t.isStringLiteral(expr.argument)) {
+                parent.vars.push({
+                    type: "Var",
+                    name: expr.argument.value,
+                    positive: false
+                });
+            } else {
+                // If the argument is not a string literal(which means it's a logical expression), we need to create a new segment
+                let index = segments.length;
+                let seg = { vars: [] };
+                segments.push(seg);
+                processExpr(expr.argument, seg, true);
+                parent.vars.push({
+                    type: "Ref",
+                    ref: index,
+                    positive: false
+                });
+            }
+        } else if (t.isLogicalExpression(expr) && expr.operator === '&&') {
+            processExpr(expr.left, parent, true);
+            processExpr(expr.right, parent, true);
+        }
+    }
+
+    let seg = { vars: [] };
+
+    segments.push(seg);
+
+    processExpr(expr, seg, true);
+
+    return segments;
+}
+
 // Export the Babel plugin
 export default function forCondition() {
     return {
@@ -144,6 +218,7 @@ export default function forCondition() {
                                 const simplified = simplifyLogic(transformedLogic);
                                 // Replace the original object with the transformed one
                                 callee.object = simplified;
+                                console.dir(segmentLogic(simplified), { depth: null });
                                 break;
                             }
                             case "StringLiteral": {
