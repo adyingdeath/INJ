@@ -190,6 +190,129 @@ function segmentLogic(expr: Expression): LogicSegment[] {
     return segments;
 }
 
+interface IfAndUnlessStatements {
+    if: t.ExpressionStatement[];
+    unless: t.ExpressionStatement[];
+}
+
+function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAndUnlessStatements {
+    let ids = segments.map(() => randomCode(4));
+
+    /**
+     * Map a segment variable to a string in execute command.
+     * @param unit - The variable to map.
+     * @param id - The id of the segment.
+     * @returns The string in execute command.
+     */
+    function mapSegmentVars(unit: LogicUnit) {
+        let result;
+        if (unit.type == "Var") {
+            result = unit.name;
+        } else if (unit.type == "Ref") {
+            result = `score ${ids[unit.ref as number]} INJ_LOGIC matches 1`;
+        }
+        return `${unit.positive ? "if" : "unless"} ${result}`;
+    }
+
+    // Create if/unless execute blocks
+    const ifExecute =
+        segments.map((seg: LogicSegment, index: number) => {
+            if (index == 0) {
+                return t.expressionStatement(
+                    t.callExpression(
+                        t.memberExpression(
+                            t.identifier("inj"),
+                            t.identifier("jump")
+                        ),
+                        [
+                            t.arrayExpression(
+                                [t.stringLiteral(
+                                    seg.vars.map((v) => mapSegmentVars(v)).join(" ")
+                                )]
+                            ),
+                            t.arrowFunctionExpression(
+                                [],
+                                t.blockStatement(path.node.consequent.body)
+                            )
+                        ]
+                    )
+                );
+            } else {
+                let command: string[] = [];
+                command.push("execute");
+                command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
+                command.push("run");
+                command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
+                return t.expressionStatement(
+                    t.callExpression(
+                        t.memberExpression(
+                            t.identifier("inj"),
+                            t.identifier("execute")
+                        ),
+                        [
+                            t.arrayExpression(
+                                [t.stringLiteral(
+                                    command.join(" ")
+                                )]
+                            )
+                        ]
+                    )
+                );
+            }
+        }).reverse();
+
+
+    const unlessExecute =
+        segments.map((seg: LogicSegment, index: number) => {
+            let command: string[] = [];
+            command.push("execute");
+            command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
+            command.push("run");
+            command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
+            return t.expressionStatement(
+                t.callExpression(
+                    t.memberExpression(
+                        t.identifier("inj"),
+                        t.identifier("execute")
+                    ),
+                    [
+                        t.arrayExpression(
+                            [t.stringLiteral(
+                                command.join(" ")
+                            )]
+                        )
+                    ]
+                )
+            );
+        }).reverse();
+    unlessExecute.push(
+        t.expressionStatement(
+            t.callExpression(
+                t.memberExpression(
+                    t.identifier("inj"),
+                    t.identifier("jump")
+                ),
+                [
+                    t.arrayExpression(
+                        [t.stringLiteral(
+                            ([{ type: "Ref", ref: 0, positive: false }] as LogicUnit[]).map((v) => mapSegmentVars(v)).join(" ")
+                        )]
+                    ),
+                    t.arrowFunctionExpression(
+                        [],
+                        t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
+                    )
+                ]
+            )
+        )
+    );
+
+    return {
+        if: ifExecute,
+        unless: unlessExecute
+    };
+}
+
 // Export the Babel plugin
 export default function forCondition() {
     return {
@@ -197,7 +320,8 @@ export default function forCondition() {
         visitor: {
             IfStatement: {
                 exit(path: any) {
-                    const test = path.node.test;
+                    const test: Expression = path.node.test;
+                    let segments: LogicSegment[] = [];
 
                     if (t.isCallExpression(test) && t.isMemberExpression(test.callee)) {
                         // #region case-call
@@ -223,117 +347,8 @@ export default function forCondition() {
                             }
                             case "StringLiteral": {
                                 let segments = segmentLogic(callee.object);
-                                let ids = segments.map(() => randomCode(4));
-
-                                /**
-                                 * Map a segment variable to a string in execute command.
-                                 * @param unit - The variable to map.
-                                 * @param id - The id of the segment.
-                                 * @returns The string in execute command.
-                                 */
-                                function mapSegmentVars(unit: LogicUnit) {
-                                    let result;
-                                    if (unit.type == "Var") {
-                                        result = unit.name;
-                                    } else if (unit.type == "Ref") {
-                                        result = `score ${ids[unit.ref as number]} INJ_LOGIC matches 1`;
-                                    }
-                                    return `${unit.positive ? "if" : "unless"} ${result}`;
-                                }
-
-                                // Create if/unless execute blocks
-                                const ifExecute =
-                                    segments.map((seg: LogicSegment, index: number) => {
-                                        if (index == 0) {
-                                            return t.expressionStatement(
-                                                t.callExpression(
-                                                    t.memberExpression(
-                                                        t.identifier("inj"),
-                                                        t.identifier("jump")
-                                                    ),
-                                                    [
-                                                        t.arrayExpression(
-                                                            [t.stringLiteral(
-                                                                seg.vars.map((v) => mapSegmentVars(v)).join(" ")
-                                                            )]
-                                                        ),
-                                                        t.arrowFunctionExpression(
-                                                            [],
-                                                            t.blockStatement(path.node.consequent.body)
-                                                        )
-                                                    ]
-                                                )
-                                            );
-                                        } else {
-                                            let command: string[] = [];
-                                            command.push("execute");
-                                            command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
-                                            command.push("run");
-                                            command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
-                                            return t.expressionStatement(
-                                                t.callExpression(
-                                                    t.memberExpression(
-                                                        t.identifier("inj"),
-                                                        t.identifier("execute")
-                                                    ),
-                                                    [
-                                                        t.arrayExpression(
-                                                            [t.stringLiteral(
-                                                                command.join(" ")
-                                                            )]
-                                                        )
-                                                    ]
-                                                )
-                                            );
-                                        }
-                                    }).reverse();
-
-
-                                const unlessExecute =
-                                    segments.map((seg: LogicSegment, index: number) => {
-                                        let command: string[] = [];
-                                        command.push("execute");
-                                        command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
-                                        command.push("run");
-                                        command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
-                                        return t.expressionStatement(
-                                            t.callExpression(
-                                                t.memberExpression(
-                                                    t.identifier("inj"),
-                                                    t.identifier("execute")
-                                                ),
-                                                [
-                                                    t.arrayExpression(
-                                                        [t.stringLiteral(
-                                                            command.join(" ")
-                                                        )]
-                                                    )
-                                                ]
-                                            )
-                                        );
-                                    }).reverse();
-                                unlessExecute.push(
-                                    t.expressionStatement(
-                                        t.callExpression(
-                                            t.memberExpression(
-                                                t.identifier("inj"),
-                                                t.identifier("jump")
-                                            ),
-                                            [
-                                                t.arrayExpression(
-                                                    [t.stringLiteral(
-                                                        ([{ type: "Ref", ref: 0, positive: false }] as LogicUnit[]).map((v) => mapSegmentVars(v)).join(" ")
-                                                    )]
-                                                ),
-                                                t.arrowFunctionExpression(
-                                                    [],
-                                                    t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
-                                                )
-                                            ]
-                                        )
-                                    )
-                                );
-
+                                
+                                const { if: ifExecute, unless: unlessExecute } = createIfAndUnlessStatements(path, segments);
 
                                 // Get the condition from function arguments
                                 const jsCondition = test.arguments[0]; // Get the first argument as the if condition
@@ -388,13 +403,27 @@ export default function forCondition() {
                         // #endregion
                     } else if (isMinecraftCondition(test)) {
                         // #region case-pure-mc
-                        // Handle pure Minecraft condition...
-                        console.log("Minecraft condition detected");
+                        // Handle pure Minecraft condition
+
+                        // Transform the logical expression
+                        const transformedLogic = applyDeMorganLaws(test);
+                        const simplified = simplifyLogic(transformedLogic);
+                        // Replace the original object with the transformed one
+                        let segments = segmentLogic(simplified);
+                        const { if: ifExecute, unless: unlessExecute } = createIfAndUnlessStatements(path, segments);
+
+                        // Create if/unless execute blocks for pure Minecraft conditions
+                        const executeStatements = [...ifExecute, ...unlessExecute];
+
+                        // Replace the entire if statement with our execute statements
+                        path.replaceWithMultiple(executeStatements);
                         // #endregion
                     } else {
                         // #region case-pure-js
                         // Handle JS condition
-                        console.log("JS condition detected");
+                        
+                        // Do nothing
+
                         // #endregion
                     }
                 }
