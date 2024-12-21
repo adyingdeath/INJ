@@ -1,12 +1,5 @@
 import minimist from "minimist";
 import CodeTree, { SnippetType } from "./compile/CodeTree.js";
-import { Compiler } from "./compile/Compiler.js";
-import { Lexer } from "./compile/Lexer.js";
-import fs from "fs";
-import { Parser } from "./compile/Parser.js";
-import { SemanticAnalyzer } from "./compile/SemanticAnalyzer.js";
-import { LogicExpression } from "./compile/MinecraftCondition.js";
-import { MinecraftCondition } from "./compile/MinecraftCondition.js";
 
 const args = minimist(process.argv.slice(2));
 
@@ -68,14 +61,14 @@ if(!!"block ~ ~ ~ stone" && !"player @p 1" && a != 1) {
 }else{
 }`;
 
-new Compiler().compile({
+/* new Compiler().compile({
     type: SnippetType.RAW,
     filename: "test",
     code: source,
     id: "123",
     namespace: "go",
     next: null
-});
+}); */
 
 
 
