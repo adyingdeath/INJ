@@ -100,7 +100,7 @@ export default function forCondition() {
         name: "transform-for-condition",
         visitor: {
             IfStatement: {
-                enter(path: any) {
+                exit(path: any) {
                     const test = path.node.test;
                     
                     if (t.isCallExpression(test)) {
@@ -123,26 +123,144 @@ export default function forCondition() {
                                     callee.object = simplified;
                                 }
                                 case "StringLiteral": {
-                                    // Forms like "A".and()
-                                    // Transform "A" -> inj.logic.and("A")
+                                    // Handle cases like "A".and() or "A".or()
+                                    const methodName = callee.property.name;
+                                    if (methodName === "and") {
+                                        // Get the condition string from StringLiteral
+                                        const baseCondition = (callee.object as t.StringLiteral).value.trim();
+                                        
+                                        // Get the condition from function arguments
+                                        const jsCondition = test.arguments[0]; // Get the first argument as the if condition
+                                        
+                                        // Replace the test condition with the argument condition
+                                        path.get('test').replaceWith(jsCondition);
+                                        
+                                        // Create if/unless execute blocks
+                                        const ifExecute = t.callExpression(
+                                            t.memberExpression(
+                                                t.identifier("inj"),
+                                                t.identifier("jump")
+                                            ),
+                                            [
+                                                t.arrayExpression(
+                                                    [t.stringLiteral("if " + baseCondition)]
+                                                ),
+                                                t.arrowFunctionExpression(
+                                                    [],
+                                                    t.blockStatement(path.node.consequent.body)
+                                                )
+                                            ]
+                                        );
+                                        
+                                        const unlessExecute = t.callExpression(
+                                            t.memberExpression(
+                                                t.identifier("inj"), 
+                                                t.identifier("jump")
+                                            ),
+                                            [
+                                                t.arrayExpression(
+                                                    [t.stringLiteral("unless " + baseCondition)]
+                                                ),
+                                                t.arrowFunctionExpression(
+                                                    [],
+                                                    t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
+                                                )
+                                            ]
+                                        );
 
-                                    // Create a member expression: inj.logic
-                                    const logicMember = t.memberExpression(
-                                        t.identifier("inj"),
-                                        t.identifier("logic")
-                                    );
-                                    
-                                    // Create the call expression: inj.logic.and("A")
-                                    const logicCall = t.callExpression(
-                                        t.memberExpression(
-                                            logicMember,
-                                            t.identifier("and")
-                                        ),
-                                        [callee.object]
-                                    );
-                                    
-                                    // Replace the string literal with inj.logic.and("A")
-                                    callee.object = logicCall;
+                                        // Create statements to insert at the beginning of then block
+                                        const statementsToInsert = [];
+                                        statementsToInsert.push(t.expressionStatement(ifExecute));
+                                        if (path.node.alternate != null) {
+                                            statementsToInsert.push(t.expressionStatement(unlessExecute));
+                                        }
+
+                                        // Create a new BlockStatement with our statements at the beginning
+                                        const newConsequent = t.blockStatement(statementsToInsert);
+
+                                        // Replace the entire consequent
+                                        path.get('consequent').replaceWith(newConsequent);
+                                    } else if (methodName === "or") {
+                                        // Get the condition string from StringLiteral
+                                        const baseCondition = (callee.object as t.StringLiteral).value.trim();
+                                        
+                                        // Get the condition from function arguments
+                                        const jsCondition = test.arguments[0]; // Get the first argument as the if condition
+                                        
+                                        // Replace the test condition with the argument condition
+                                        path.get('test').replaceWith(jsCondition);
+                                        
+                                        // Create if/unless execute blocks for Minecraft command
+                                        const mcConditionCheck = t.callExpression(
+                                            t.memberExpression(
+                                                t.identifier("inj"),
+                                                t.identifier("jump")
+                                            ),
+                                            [
+                                                t.arrayExpression(
+                                                    [t.stringLiteral("if " + baseCondition)]
+                                                ),
+                                                t.arrowFunctionExpression(
+                                                    [],
+                                                    t.blockStatement(path.node.consequent.body)
+                                                )
+                                            ]
+                                        );
+
+                                        // - If JS condition is true, execute the body directly
+                                        // - If JS condition is false:
+                                        //   - If Minecraft condition is true, execute the body
+                                        //   - If Minecraft condition is false, execute the alternate
+
+                                        // Replace the entire consequent. Now the consequent will be run if the JS condition is true.
+                                        path.get('consequent').replaceWith(t.blockStatement(path.node.consequent.body));
+
+                                        // Create if/unless execute blocks
+                                        const ifExecute = t.callExpression(
+                                            t.memberExpression(
+                                                t.identifier("inj"),
+                                                t.identifier("jump")
+                                            ),
+                                            [
+                                                t.arrayExpression(
+                                                    [t.stringLiteral("if " + baseCondition)]
+                                                ),
+                                                t.arrowFunctionExpression(
+                                                    [],
+                                                    t.blockStatement(path.node.consequent.body)
+                                                )
+                                            ]
+                                        );
+                                        
+                                        const unlessExecute = t.callExpression(
+                                            t.memberExpression(
+                                                t.identifier("inj"), 
+                                                t.identifier("jump")
+                                            ),
+                                            [
+                                                t.arrayExpression(
+                                                    [t.stringLiteral("unless " + baseCondition)]
+                                                ),
+                                                t.arrowFunctionExpression(
+                                                    [],
+                                                    t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
+                                                )
+                                            ]
+                                        );
+
+                                        // Create statements to insert at the beginning of then block
+                                        const statementsToInsert = [];
+                                        statementsToInsert.push(t.expressionStatement(ifExecute));
+                                        if (path.node.alternate != null) {
+                                            statementsToInsert.push(t.expressionStatement(unlessExecute));
+                                        }
+
+                                        // Create a new BlockStatement with our statements at the beginning
+                                        const newAlternate = t.blockStatement(statementsToInsert);
+
+                                        // Replace the entire alternate
+                                        path.get('alternate').replaceWith(newAlternate);
+                                    }
                                 }
                             }
                         }

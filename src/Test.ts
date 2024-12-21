@@ -6,8 +6,10 @@ import * as babel from '@babel/core';
 import generate from '@babel/generator';
 
 (async () => {
-    const source = `if("B".and()) {
+    const source = `if("B".or(a != 1)) {
         say 1
+    }else{
+        say 2
     }`;
     
     let code = new Transformer().transform(source);
@@ -25,6 +27,3 @@ import generate from '@babel/generator';
         console.log("Transformed code:", result.code);
     }
 })();
-
-
-
