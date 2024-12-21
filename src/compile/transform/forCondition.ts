@@ -54,14 +54,14 @@ function applyDeMorganLaws(expr: Expression): Expression {
 function simplifyLogic(expr: Expression): Expression {
     let hasChanged = true;
     let result = expr;
-    
+
     while (hasChanged) {
         hasChanged = false;
         result = simplifyOnce(result, (changed) => {
             hasChanged = hasChanged || changed;
         });
     }
-    
+
     return result;
 }
 
@@ -95,7 +95,7 @@ function simplifyOnce(expr: Expression, setChanged: (changed: boolean) => void):
         if (expr.operator === '||') {
             // A || B => !(!A && !B)
             setChanged(true);
-            return t.unaryExpression('!', 
+            return t.unaryExpression('!',
                 t.logicalExpression(
                     '&&',
                     t.unaryExpression('!', simplifiedLeft),
@@ -198,7 +198,7 @@ export default function forCondition() {
             IfStatement: {
                 exit(path: any) {
                     const test = path.node.test;
-                    
+
                     if (t.isCallExpression(test) && t.isMemberExpression(test.callee)) {
                         // #region case-call
                         // is the form like ().and() or ().or();
@@ -209,6 +209,7 @@ export default function forCondition() {
                             // Check if it's a method call with 'and' or 'or', if not, return
                             return;
                         }
+
                         switch (callee.object.type) {
                             case "UnaryExpression":
                                 if (callee.object.operator != "!") break;
@@ -223,33 +224,25 @@ export default function forCondition() {
                             case "StringLiteral": {
                                 let segments = segmentLogic(callee.object);
                                 let ids = segments.map(() => randomCode(4));
-                                // Handle cases like "A".and() or "A".or()
-                                const methodName = callee.property.name;
-                                if (methodName === "and") {
-                                    // Get the condition from function arguments
-                                    const jsCondition = test.arguments[0]; // Get the first argument as the if condition
-                                    
-                                    // Replace the test condition with the argument condition
-                                    path.get('test').replaceWith(jsCondition);
 
-                                    /**
-                                     * Map a segment variable to a string in execute command.
-                                     * @param unit - The variable to map.
-                                     * @param id - The id of the segment.
-                                     * @returns The string in execute command.
-                                     */
-                                    function mapSegmentVars(unit: LogicUnit) {
-                                        let result;
-                                        if (unit.type == "Var") {
-                                            result = unit.name;
-                                        } else if (unit.type == "Ref") {
-                                            result = `score ${ids[unit.ref as number]} INJ_LOGIC matches 1`;
-                                        }
-                                        return `${unit.positive ? "if" : "unless"} ${result}`;
+                                /**
+                                 * Map a segment variable to a string in execute command.
+                                 * @param unit - The variable to map.
+                                 * @param id - The id of the segment.
+                                 * @returns The string in execute command.
+                                 */
+                                function mapSegmentVars(unit: LogicUnit) {
+                                    let result;
+                                    if (unit.type == "Var") {
+                                        result = unit.name;
+                                    } else if (unit.type == "Ref") {
+                                        result = `score ${ids[unit.ref as number]} INJ_LOGIC matches 1`;
                                     }
-                                    
-                                    // Create if/unless execute blocks
-                                    const ifExecute = 
+                                    return `${unit.positive ? "if" : "unless"} ${result}`;
+                                }
+
+                                // Create if/unless execute blocks
+                                const ifExecute =
                                     segments.map((seg: LogicSegment, index: number) => {
                                         if (index == 0) {
                                             return t.expressionStatement(
@@ -288,19 +281,15 @@ export default function forCondition() {
                                                             [t.stringLiteral(
                                                                 command.join(" ")
                                                             )]
-                                                        ),
-                                                        t.arrowFunctionExpression(
-                                                            [],
-                                                            t.blockStatement(path.node.consequent.body)
                                                         )
                                                     ]
                                                 )
                                             );
                                         }
                                     }).reverse();
-                                    
-                                    
-                                    const unlessExecute = 
+
+
+                                const unlessExecute =
                                     segments.map((seg: LogicSegment, index: number) => {
                                         let command: string[] = [];
                                         command.push("execute");
@@ -318,51 +307,59 @@ export default function forCondition() {
                                                         [t.stringLiteral(
                                                             command.join(" ")
                                                         )]
-                                                    ),
-                                                    t.arrowFunctionExpression(
-                                                        [],
-                                                        t.blockStatement(path.node.consequent.body)
                                                     )
                                                 ]
                                             )
                                         );
                                     }).reverse();
-                                    unlessExecute.push(
-                                        t.expressionStatement(
-                                            t.callExpression(
-                                                t.memberExpression(
-                                                    t.identifier("inj"),
-                                                    t.identifier("jump")
+                                unlessExecute.push(
+                                    t.expressionStatement(
+                                        t.callExpression(
+                                            t.memberExpression(
+                                                t.identifier("inj"),
+                                                t.identifier("jump")
+                                            ),
+                                            [
+                                                t.arrayExpression(
+                                                    [t.stringLiteral(
+                                                        ([{ type: "Ref", ref: 0, positive: false }] as LogicUnit[]).map((v) => mapSegmentVars(v)).join(" ")
+                                                    )]
                                                 ),
-                                                [
-                                                    t.arrayExpression(
-                                                        [t.stringLiteral(
-                                                            [{type: "Ref", ref: 0, positive: false}].map((v) => mapSegmentVars(v)).join(" ")
-                                                        )]
-                                                    ),
-                                                    t.arrowFunctionExpression(
-                                                        [],
-                                                        t.blockStatement(path.node.consequent.body)
-                                                    )
-                                                ]
-                                            )
+                                                t.arrowFunctionExpression(
+                                                    [],
+                                                    t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
+                                                )
+                                            ]
                                         )
-                                    );
+                                    )
+                                );
 
-                                    // Create statements to insert at the beginning of then block
-                                    const statementsToInsert: t.ExpressionStatement[] = [];
-                                    if (ifExecute.length === 1) {
-                                        statementsToInsert.push(ifExecute[0]);
+
+                                // Get the condition from function arguments
+                                const jsCondition = test.arguments[0]; // Get the first argument as the if condition
+
+
+                                // Create statements to insert at the beginning of then block
+                                const statementsToInsert: t.ExpressionStatement[] = [];
+                                if (ifExecute.length === 1) {
+                                    statementsToInsert.push(ifExecute[0]);
+                                } else {
+                                    statementsToInsert.push(...ifExecute);
+                                }
+                                if (path.node.alternate != null) {
+                                    if (unlessExecute.length === 1) {
+                                        statementsToInsert.push(unlessExecute[0]);
                                     } else {
-                                        statementsToInsert.push(...ifExecute);
+                                        statementsToInsert.push(...unlessExecute);
                                     }
-                                    if (path.node.alternate != null) {
-                                        if (unlessExecute.length === 1) {
-                                            statementsToInsert.push(unlessExecute[0]);
-                                        } else {
-                                            statementsToInsert.push(...unlessExecute);
-                                        }
-                                    }
+                                }
+
+                                // Handle cases like "A".and() or "A".or()
+                                const methodName = callee.property.name;
+                                if (methodName === "and") {
+
+                                    // Replace the test condition with the argument condition
+                                    path.get('test').replaceWith(jsCondition);
 
                                     // Create a new BlockStatement with our statements at the beginning
                                     const newConsequent = t.blockStatement(statementsToInsert);
@@ -370,77 +367,14 @@ export default function forCondition() {
                                     // Replace the entire consequent
                                     path.get('consequent').replaceWith(newConsequent);
                                 } else if (methodName === "or") {
-                                    
-                                    // Get the condition from function arguments
-                                    const jsCondition = test.arguments[0]; // Get the first argument as the if condition
-                                    
-                                    // Replace the test condition with the argument condition
-                                    path.get('test').replaceWith(jsCondition);
-                                    
-                                    // Create if/unless execute blocks for Minecraft command
-                                    const mcConditionCheck = t.callExpression(
-                                        t.memberExpression(
-                                            t.identifier("inj"),
-                                            t.identifier("jump")
-                                        ),
-                                        [
-                                            t.arrayExpression(
-                                                [t.stringLiteral("if ")]
-                                            ),
-                                            t.arrowFunctionExpression(
-                                                [],
-                                                t.blockStatement(path.node.consequent.body)
-                                            )
-                                        ]
-                                    );
+
+                                    // Replace the entire consequent. Now the consequent will be run if the JS condition is true.
+                                    path.get('consequent').replaceWith(t.blockStatement(path.node.consequent.body));
 
                                     // - If JS condition is true, execute the body directly
                                     // - If JS condition is false:
                                     //   - If Minecraft condition is true, execute the body
                                     //   - If Minecraft condition is false, execute the alternate
-
-                                    // Replace the entire consequent. Now the consequent will be run if the JS condition is true.
-                                    path.get('consequent').replaceWith(t.blockStatement(path.node.consequent.body));
-
-                                    // Create if/unless execute blocks
-                                    const ifExecute = t.callExpression(
-                                        t.memberExpression(
-                                            t.identifier("inj"),
-                                            t.identifier("jump")
-                                        ),
-                                        [
-                                            t.arrayExpression(
-                                                [t.stringLiteral("if ")]
-                                            ),
-                                            t.arrowFunctionExpression(
-                                                [],
-                                                t.blockStatement(path.node.consequent.body)
-                                            )
-                                        ]
-                                    );
-                                    
-                                    const unlessExecute = t.callExpression(
-                                        t.memberExpression(
-                                            t.identifier("inj"), 
-                                            t.identifier("jump")
-                                        ),
-                                        [
-                                            t.arrayExpression(
-                                                [t.stringLiteral("unless ")]
-                                            ),
-                                            t.arrowFunctionExpression(
-                                                [],
-                                                t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
-                                            )
-                                        ]
-                                    );
-
-                                    // Create statements to insert at the beginning of then block
-                                    const statementsToInsert = [];
-                                    statementsToInsert.push(t.expressionStatement(ifExecute));
-                                    if (path.node.alternate != null) {
-                                        statementsToInsert.push(t.expressionStatement(unlessExecute));
-                                    }
 
                                     // Create a new BlockStatement with our statements at the beginning
                                     const newAlternate = t.blockStatement(statementsToInsert);
