@@ -104,14 +104,46 @@ export default function forCondition() {
                     const test = path.node.test;
                     
                     if (t.isCallExpression(test)) {
+                        // is the form like ().and() or ().or();
                         if (t.isMemberExpression(test.callee)) {
                             const callee = test.callee;
-                            if (t.isLogicalExpression(callee.object)) {
-                                // Transform the logical expression
-                                const transformedLogic = applyDeMorganLaws(callee.object);
-                                const simplified = simplifyLogic(transformedLogic);
-                                // Replace the original object with the transformed one
-                                callee.object = simplified;
+                            if (!(t.isIdentifier(callee.property)
+                                && (callee.property.name === "and" || callee.property.name === "or")
+                            )) {
+                                // Check if it's a method call with 'and' or 'or', if not, return
+                                return;
+                            }
+                            switch (callee.object.type) {
+                                case "LogicalExpression": {
+                                    // Forms like ("A" & "B").and()
+                                    // Transform the logical expression
+                                    const transformedLogic = applyDeMorganLaws(callee.object);
+                                    const simplified = simplifyLogic(transformedLogic);
+                                    // Replace the original object with the transformed one
+                                    callee.object = simplified;
+                                }
+                                case "StringLiteral": {
+                                    // Forms like "A".and()
+                                    // Transform "A" -> inj.logic.and("A")
+
+                                    // Create a member expression: inj.logic
+                                    const logicMember = t.memberExpression(
+                                        t.identifier("inj"),
+                                        t.identifier("logic")
+                                    );
+                                    
+                                    // Create the call expression: inj.logic.and("A")
+                                    const logicCall = t.callExpression(
+                                        t.memberExpression(
+                                            logicMember,
+                                            t.identifier("and")
+                                        ),
+                                        [callee.object]
+                                    );
+                                    
+                                    // Replace the string literal with inj.logic.and("A")
+                                    callee.object = logicCall;
+                                }
                             }
                         }
                     }

@@ -6,7 +6,7 @@ import * as babel from '@babel/core';
 import generate from '@babel/generator';
 
 (async () => {
-    const source = `if((('A' && "B" ) && 1).and()) {
+    const source = `if("B".and()) {
         say 1
     }`;
     
