@@ -10,16 +10,6 @@ interface LogicUnit {
     positive: boolean;
 }
 
-interface LogicVar extends LogicUnit {
-    type: "Var";
-    name: string;
-}
-
-interface LogicRef extends LogicUnit {
-    type: "Ref";
-    ref: number;
-}
-
 interface LogicSegment {
     vars: LogicUnit[];
 }
@@ -221,14 +211,15 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
                 return t.expressionStatement(
                     t.callExpression(
                         t.memberExpression(
-                            t.identifier("inj"),
+                            t.memberExpression(
+                                t.identifier("this"),
+                                t.identifier("INJ")
+                            ),
                             t.identifier("jump")
                         ),
                         [
-                            t.arrayExpression(
-                                [t.stringLiteral(
-                                    seg.vars.map((v) => mapSegmentVars(v)).join(" ")
-                                )]
+                            t.stringLiteral(
+                                seg.vars.map((v) => mapSegmentVars(v)).join(" ")
                             ),
                             t.arrowFunctionExpression(
                                 [],
@@ -246,7 +237,10 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
                 return t.expressionStatement(
                     t.callExpression(
                         t.memberExpression(
-                            t.identifier("inj"),
+                            t.memberExpression(
+                                t.identifier("this"),
+                                t.identifier("INJ")
+                            ),
                             t.identifier("execute")
                         ),
                         [
@@ -272,7 +266,10 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
             return t.expressionStatement(
                 t.callExpression(
                     t.memberExpression(
-                        t.identifier("inj"),
+                        t.memberExpression(
+                            t.identifier("this"),
+                            t.identifier("INJ")
+                        ),
                         t.identifier("execute")
                     ),
                     [
@@ -289,19 +286,20 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
         t.expressionStatement(
             t.callExpression(
                 t.memberExpression(
-                    t.identifier("inj"),
+                    t.memberExpression(
+                        t.identifier("this"),
+                        t.identifier("INJ")
+                    ),
                     t.identifier("jump")
                 ),
                 [
-                    t.arrayExpression(
-                        [t.stringLiteral(
-                            ([{ type: "Ref", ref: 0, positive: false }] as LogicUnit[]).map((v) => mapSegmentVars(v)).join(" ")
-                        )]
+                    t.stringLiteral(
+                        ([{ type: "Ref", ref: 0, positive: false }] as LogicUnit[]).map((v) => mapSegmentVars(v)).join(" ")
                     ),
                     t.arrowFunctionExpression(
                         [],
                         t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
-                    )
+                    ),
                 ]
             )
         )
@@ -422,7 +420,7 @@ export default function forCondition() {
                         // #region case-pure-js
                         // Handle JS condition
                         
-                        // Do nothing
+                        // Do nothing...
 
                         // #endregion
                     }

@@ -1,29 +1,43 @@
-import { SnippetType } from "./compile/CodeTree.js";
+import ivm from 'isolated-vm';
+import CodeTree from "./compile/CodeTree.js";
+import { Compiler } from "./compile/Compiler.js";
 import { Transformer } from "./compile/Transformer.js";
-import forCondition from "./compile/transform/forCondition.js";
-
-import * as babel from '@babel/core';
-import generate from '@babel/generator';
 
 (async () => {
-    const source = `if(("A" || "B")) {
-        say 1
-    }else{
-        say 2
-    }`;
-    
-    let code = new Transformer().transform(source);
-    
-    console.log("Input code:", code);
-    
-    const result = babel.transformSync(code, {
-        presets: ['@babel/preset-env'],
-        plugins: [forCondition],
-        sourceType: 'module',
-        ast: true,
-    });
-    
-    if (result) {
-        console.log("Transformed code:", result.code);
-    }
+    const tree = new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/GC/src")
+
+    const code = new Transformer().transform(tree.root.gc[0].code);
+
+    console.log(code);
+    const compiler = new Compiler();
+    await compiler.compile(tree);
+    console.dir(tree, { depth: null });
 })();
+
+/* const inj = {
+    go: 1,
+    test: new ivm.Callback((...args: any[]) => {
+        return "go";
+    })
+};
+
+(async () => {
+    const isolate = new ivm.Isolate();
+    const context = await isolate.createContext();
+    const jail = context.global;
+
+    // Set up the global object in the new context
+    await jail.set('global', jail.derefInto());
+    await jail.set('inj', new ivm.Reference(inj));
+    await jail.set('injtest', new ivm.Callback((...args: any[]) => {
+        return "go";
+    }));
+
+    const script = await isolate.compileScript(`
+        injtest();
+        //inj.test();
+    `);
+
+    const result = await script.run(context);
+    console.log(result);
+})(); */

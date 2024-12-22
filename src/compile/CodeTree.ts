@@ -3,24 +3,13 @@ import fs from "fs";
 import path from "path";
 
 /**
- * Enum representing different types of code snippets
- */
-export enum SnippetType {
-    RAW,  // Raw mcfunction code
-    MC,   // Minecraft command
-    JUMP, // Code for jumping
-}
-
-/**
  * Interface representing a code snippet in the tree
  */
 export interface Snippet {
     id: string;
     namespace: string;
     filename: string;
-    type: SnippetType;
     code: string;
-    next: Snippet | null;
 }
 
 /**
@@ -39,7 +28,9 @@ export default class CodeTree {
     public root: CodeTreeRoot;
 
     constructor(filename: string) {
-        this.root = {};
+        this.root = {
+            inj: []
+        };
         // Only scan direct subdirectories in root
         const items = fs.readdirSync(filename);
         for (const item of items) {
@@ -94,9 +85,7 @@ export default class CodeTree {
                     id: randomCode(8),
                     namespace: namespace,
                     filename: filenameWithoutExt.replace(/\\/g, '/'), // Ensure forward slashes
-                    type: SnippetType.RAW,
                     code: code,
-                    next: null
                 });
             }
         }

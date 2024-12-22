@@ -1,3 +1,6 @@
+import * as babel from '@babel/core';
+import forCondition from './transform/forCondition.js';
+
 export class Transformer {
     /**
      * Transform code into valid JavaScript
@@ -8,7 +11,13 @@ export class Transformer {
         // Split code into lines and process each line
         const lines = code.split('\n');
         const transformedLines = lines.map(line => this.transformLine(line));
-        return transformedLines.join('\n');
+        const result = babel.transformSync(transformedLines.join('\n'), {
+            presets: ['@babel/preset-env'],
+            plugins: [forCondition],
+            sourceType: 'module',
+            ast: true,
+        });
+        return (result && result.code) ? result.code : "";
     }
 
     /**
@@ -69,6 +78,6 @@ export class Transformer {
         // Preserve original indentation
         const indentation = line.match(/^\s*/)?.[0] || '';
         const trimmedLine = line.trim();
-        return `${indentation}inj.execute(\`${trimmedLine.replace(/`/g, "\\`")}\`)`;
+        return `${indentation}INJ.execute(\`${trimmedLine.replace(/`/g, "\\`")}\`)`;
     }
 }
