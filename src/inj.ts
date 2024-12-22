@@ -37,7 +37,7 @@ program
                 const watcher = watch(sourcePath, { recursive: true });
                 for await (const event of watcher) {
                     console.log(`Changes detected in: ${event.filename}`);
-                    await processDirectory(sourcePath);
+                    await processDirectory(sourcePath, options);
                 }
             } catch (error) {
                 console.error('Watch error:', error);
@@ -45,11 +45,11 @@ program
             }
         } else {
             // Single compilation
-            await processDirectory(sourcePath);
+            await processDirectory(sourcePath, options);
         }
     });
 
-async function processDirectory(sourcePath: string) {
+async function processDirectory(sourcePath: string, options: { output?: string }) {
     console.log(`Processing directory: ${sourcePath}`);
     try {
         console.log("Building CodeTree...");
@@ -58,13 +58,19 @@ async function processDirectory(sourcePath: string) {
         console.log("Compiling...");
         const compiler = new Compiler();
         await compiler.compile(codeTree);
+
+        console.dir(codeTree, { depth: null });
         
         console.log("Generating output files...");
-        const outputPath = path.join(process.cwd(), 'dist'); // 你可以根据需要修改输出路径
+        // 如果指定了输出路径就使用指定路径，否则使用源目录下的 data 文件夹
+        const outputPath = options.output 
+            ? path.resolve(process.cwd(), options.output)
+            : path.join(path.dirname(sourcePath), 'data');
+            
         const fileMaker = new FileMaker(sourcePath, outputPath);
         await fileMaker.process(codeTree);
         
-        console.log("Compilation completed successfully");
+        console.log(`Compilation completed successfully. Output: ${outputPath}`);
     } catch (error) {
         console.error('Error processing directory:', error);
         process.exit(1);

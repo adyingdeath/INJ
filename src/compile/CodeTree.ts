@@ -37,7 +37,6 @@ export default class CodeTree {
                 this.scanNamespace(fullPath);
             }
         }
-        console.log(this.root);
     }
 
     /**

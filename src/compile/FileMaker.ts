@@ -1,11 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-
-interface CodeNode {
-    namespace: string;
-    filename: string;
-    code: string;
-}
+import { Snippet } from './CodeTree.js';
 
 export class FileMaker {
     private sourcePath: string;
@@ -19,9 +14,8 @@ export class FileMaker {
     /**
      * Process the CodeTree and generate output files
      */
-    public async process(codeTree: { root: Record<string, CodeNode[]> }) {
-        // Create output directory if it doesn't exist
-        fs.mkdirSync(this.outputPath, { recursive: true });
+    public async process(codeTree: { root: Record<string, Snippet[]> }) {
+        this.initializeOutputDirectory();
 
         // Process each namespace in the CodeTree
         for (const [namespace, nodes] of Object.entries(codeTree.root)) {
@@ -32,10 +26,24 @@ export class FileMaker {
         await this.copyNonFunctionDirs();
     }
 
+    private initializeOutputDirectory() {
+        if (fs.existsSync(this.outputPath)) {
+            const entries = fs.readdirSync(this.outputPath, { withFileTypes: true });
+            for (const entry of entries) {
+                const entryPath = path.join(this.outputPath, entry.name);
+                if (entry.isDirectory()) {
+                    fs.rmSync(entryPath, { recursive: true, force: true }); // Recursively delete subdirectories
+                }
+            }
+        } else {
+            fs.mkdirSync(this.outputPath, { recursive: true });
+        }
+    }
+
     /**
      * Process a single namespace and its code nodes
      */
-    private async processNamespace(namespace: string, nodes: CodeNode[]) {
+    private async processNamespace(namespace: string, nodes: Snippet[]) {
         // Create namespace directory and functions directory
         const namespacePath = path.join(this.outputPath, namespace);
         const functionsPath = path.join(namespacePath, 'functions');
@@ -50,7 +58,7 @@ export class FileMaker {
     /**
      * Write a single function file
      */
-    private async writeFunction(basePath: string, node: CodeNode) {
+    private async writeFunction(basePath: string, node: Snippet) {
         // Handle nested directories in filename
         const parts = node.filename.split('/');
         const filename = parts.pop()!;
@@ -70,13 +78,17 @@ export class FileMaker {
     private async copyNonFunctionDirs() {
         try {
             const entries = fs.readdirSync(this.sourcePath, { withFileTypes: true });
-            
+
             for (const entry of entries) {
-                if (entry.isDirectory() && entry.name !== 'functions') {
-                    const sourceDirPath = path.join(this.sourcePath, entry.name);
-                    const targetDirPath = path.join(this.outputPath, entry.name);
-                    
-                    this.copyDirectory(sourceDirPath, targetDirPath);
+                const innerEntries = fs.readdirSync(path.join(entry.parentPath, entry.name), { withFileTypes: true });
+                for (const innerEntry of innerEntries) {
+                    if (innerEntry.isDirectory() && innerEntry.name !== 'functions') {
+                        const relativePath = path.relative(this.sourcePath, path.join(innerEntry.parentPath, innerEntry.name));
+                        const sourceDirPath = path.join(this.sourcePath, relativePath);
+                        const targetDirPath = path.join(this.outputPath, relativePath);
+
+                        this.copyDirectory(sourceDirPath, targetDirPath);
+                    }
                 }
             }
         } catch (error) {
