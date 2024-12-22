@@ -30,10 +30,14 @@ class INJContext {
             this.current.code += `execute ${conditions} run function inj:${node.filename}\n`;
 
             const inj = new INJContext(this.codeTree, node)
+            
+            // Create a new context with module options
+            const vmContext = vm.createContext({
+                INJ: inj.INJ,
+                console: console,
+            });
 
-            let context : vm.Context = vm.createContext({});
-            Object.assign(context, { INJ: inj.INJ, console: console });
-            vm.runInContext(`(${callback.toString()})();`, context);
+            vm.runInContext(`(${callback.toString()})();`, vmContext);
         }
     }
 
@@ -46,12 +50,9 @@ class INJContext {
  */
 export class Compiler {
     private transformer: Transformer;
-    private context: vm.Context;
 
     constructor() {
         this.transformer = new Transformer();
-        // Create a new context for running code
-        this.context = vm.createContext({});
     }
 
     /**
@@ -75,16 +76,19 @@ export class Compiler {
      * @param code Raw code to compile
      */
     private async compileSnippet(tree: CodeTree, current: Snippet, code: string): Promise<void> {
-        // Create inj object with necessary methods
-        
-
         try {
+            console.log(1);
             const transformedCode = this.transformer.transform(code);
             const context = new INJContext(tree, current);
-            // Set up context with injObject
-            Object.assign(this.context, { INJ: context.INJ, console: console });
-            // Run the code in vm context
-            vm.runInContext(transformedCode, this.context);
+            
+            // Create a new context with module options
+            const vmContext = vm.createContext({
+                INJ: context.INJ,
+                console: console,
+            });
+
+            // Run the code with module support
+            vm.runInContext(transformedCode, vmContext);
         } catch (error) {
             console.error('Compilation error:', error);
             throw error;

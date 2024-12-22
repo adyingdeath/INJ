@@ -1,6 +1,52 @@
 import * as babel from '@babel/core';
 import forCondition from './transform/forCondition.js';
 
+const DeprecatedCommandList = [
+    "replaceitem",
+    "testfor",
+    "testforblock",
+    "testforblocks",
+    "toggledownfall"
+]
+
+const BECommandList = [
+    "replaceitem", "testfor", "testforblock", "testforblocks",
+    "toggledownfall", "clear", "clone", "damage", "deop", "difficulty",
+    "effect", "enchant", "execute", "fill", "function", "gamemode",
+    "gamerule", "give", "help", "kick", "kill", "list", "locate",
+    "loot", "me", "msg", "op", "particle", "place", "playsound", "recipe",
+    "reload", "ride", "say", "schedule", "scoreboard", "setblock",
+    "setworldspawn", "spawnpoint", "spreadplayers", "stop", "stopsound",
+    "summon", "tag", "teleport", "tell", "tellraw", "time", "title",
+    "tp", "transfer", "w", "weather", "whitelist", "xp", "?", "ability",
+    "aimassist", "alwaysday", "camera", "camerashake", "changesetting",
+    "clearspawnpoint", "connect", "daylock", "dedicatedwsserver", "dialogue",
+    "event", "fog", "gametest", "gametips", "hud", "immutableworld",
+    "inputpermission", "mobevent", "music", "ops", "permission", "playanimation",
+    "reloadconfig", "save", "script", "scriptevent", "set_movement_authority",
+    "setmaxplayers", "structure", "tickingarea", "titleraw", "wb", "worldbuilder",
+    "wsserver"
+]
+
+const JECommandList = [
+    "advancement", "attribute", "ban", "ban-ip", "banlist", "bossbar",
+    "clear", "clone", "damage", "data", "datapack", "debug",
+    "defaultgamemode", "deop", "difficulty", "effect", "enchant",
+    "execute", "experience", "fill", "fillbiome", "forceload",
+    "function", "gamemode", "gamerule", "give", "help", "item",
+    "jfr", "kick", "kill", "list", "locate", "loot", "me", "msg",
+    "op", "pardon", "pardon-ip", "particle", "perf", "place",
+    "playsound", "publish", "random", "recipe", "reload", "return",
+    "ride", "rotate", "save-all", "save-off", "save-on", "say",
+    "schedule", "scoreboard", "seed", "setblock", "setidletimeout",
+    "setworldspawn", "spawnpoint", "spectate", "spreadplayers", "stop",
+    "stopsound", "summon", "tag", "team", "teammsg", "teleport", "tell",
+    "tellraw", "tick", "time", "title", "tm", "tp", "transfer", "trigger",
+    "w", "warden_spawn_tracker", "weather", "whitelist", "worldborder", "xp"
+]
+
+const MinecraftCommandList = Array.from(new Set([...DeprecatedCommandList, ...BECommandList, ...JECommandList]));
+
 export class Transformer {
     /**
      * Transform code into valid JavaScript
@@ -11,8 +57,13 @@ export class Transformer {
         // Split code into lines and process each line
         const lines = code.split('\n');
         const transformedLines = lines.map(line => this.transformLine(line));
+        console.log("TRANSFORMED:", transformedLines);
         const result = babel.transformSync(transformedLines.join('\n'), {
-            presets: ['@babel/preset-env'],
+            presets: [
+                ['@babel/preset-env', {
+                    modules: false  // 禁止将 ES 模块转换为 CommonJS
+                }]
+            ],
             plugins: [forCondition],
             sourceType: 'module',
             ast: true,
@@ -28,7 +79,7 @@ export class Transformer {
     private transformLine(line: string): string {
         // Trim the line to remove leading/trailing whitespace
         const trimmedLine = line.trim();
-        
+
         // Skip empty lines
         if (!trimmedLine) {
             return line;
@@ -45,7 +96,7 @@ export class Transformer {
         }
 
         // Rule 3: Check if it starts with "identifier space identifier"
-        if (this.startsWithTwoIdentifiers(trimmedLine)) {
+        if (this.isMinecraftCommand(trimmedLine)) {
             return this.wrapWithExecute(line);
         }
 
@@ -65,10 +116,12 @@ export class Transformer {
     /**
      * Check if the line starts with two identifiers separated by space
      */
-    private startsWithTwoIdentifiers(line: string): boolean {
+    private isMinecraftCommand(line: string): boolean {
         // Match pattern: identifier + space + identifier
         const pattern = /^[^(){}\[\]<>;"'\s]+\s+[^(){}\[\]<>;"'\s]+/;
-        return pattern.test(line);
+        if (!pattern.test(line)) return false;
+        if (!MinecraftCommandList.includes(line.split(" ")[0])) return false;
+        return true;
     }
 
     /**

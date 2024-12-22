@@ -6,9 +6,9 @@ import { Transformer } from "./compile/Transformer.js";
 (async () => {
     const tree = new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/GC/src")
 
-    const code = new Transformer().transform(tree.root.gc[0].code);
+    //const code = new Transformer().transform(tree.root.gc[0].code);
 
-    console.log(code);
+    //console.log(code);
     const compiler = new Compiler();
     await compiler.compile(tree);
     console.dir(tree, { depth: null });
