@@ -76,7 +76,6 @@ export class Compiler {
      */
     private async compileSnippet(tree: CodeTree, current: Snippet, code: string): Promise<void> {
         try {
-            console.log(1);
             const transformedCode = this.transformer.transform(code);
             const context = new INJContext(tree, current);
             

@@ -1,4 +1,4 @@
-import { Program, Node, Expression, LogicalExpression, UnaryExpression, MemberExpression, CallExpression, IfStatement } from "@babel/types";
+import { Expression } from "@babel/types";
 import * as t from "@babel/types";
 import randomCode from "../../util/randomCode.js";
 

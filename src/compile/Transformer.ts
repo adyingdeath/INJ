@@ -57,7 +57,6 @@ export class Transformer {
         // Split code into lines and process each line
         const lines = code.split('\n');
         const transformedLines = lines.map(line => this.transformLine(line));
-        console.log("TRANSFORMED:", transformedLines);
         const result = babel.transformSync(transformedLines.join('\n'), {
             presets: [
                 ['@babel/preset-env', {
