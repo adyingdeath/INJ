@@ -20,7 +20,6 @@ class INJContext {
             let id = randomCode(8);
     
             let node: Snippet = {
-                id: id,
                 namespace: "inj",
                 filename: `${id}`,
                 code: "",

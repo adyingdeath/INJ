@@ -1,4 +1,3 @@
-import randomCode from "../util/randomCode.js";
 import fs from "fs";
 import path from "path";
 
@@ -6,7 +5,6 @@ import path from "path";
  * Interface representing a code snippet in the tree
  */
 export interface Snippet {
-    id: string;
     namespace: string;
     filename: string;
     code: string;
@@ -82,7 +80,6 @@ export default class CodeTree {
                 const filenameWithoutExt = relativePath.slice(0, -11); // Remove '.mcfunction' extension
                 
                 this.root[namespace].push({
-                    id: randomCode(8),
                     namespace: namespace,
                     filename: filenameWithoutExt.replace(/\\/g, '/'), // Ensure forward slashes
                     code: code,
@@ -90,15 +87,4 @@ export default class CodeTree {
             }
         }
     }
-}
-
-export enum NodeType {
-    MINECRAFT = 'MINECRAFT',
-    // ... other node types ...
-}
-
-export interface ASTNode {
-    type: NodeType;
-    value: string;
-    // ... other properties ...
 }
