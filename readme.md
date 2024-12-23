@@ -12,8 +12,9 @@ Use `node dist/inj.js` to test the command line functionality. This works the sa
 # Getting Started
 
 - First, install [Node.js](https://nodejs.org/en/download/prebuilt-installer) - this is the runtime environment required for INJ.
-- Navigate to the INJ source code directory (where `package.json` is located) and run `npm link` in your terminal to make the command globally available.
-- After linking, you can use the `inj` command from any directory in your terminal.
+- Navigate to the INJ root directory (where `package.json` is located) and run `npm install` in your terminal to install all the dependencies INJ needs.
+- After installing, add the INJ root directory to your PATH environment variable.
+- Now, you can use the `inj` command from any directory in your terminal.
 
 # Usage
 
@@ -98,6 +99,44 @@ while (i % 2 == 0 && i < 10) {
     tellraw @a "Hello World!"
 }
 ```
+
+## Command Line
+
+```
+Usage: inj [options] <directory>
+
+Compiler for your project
+
+Arguments:
+  directory            source directory
+
+Options:
+  -V, --version        output the version number
+  -o, --output <path>  output path
+  -w, --watch          watch mode
+  -h, --help           display help for command
+```
+
+The source directory is where you save your source code, whose structure is as follows:
+
+```
+src
+├─<your_namespace>
+│  ├─advancements
+│  ├─functions
+│  │  ├─test.mcfunction
+│  │  └─hello.mcfunction
+│  ├─loot_tables
+│  ├─recipes
+│  └─tags
+└─minecraft
+    ├─dimension
+    ├─dimension_type
+    ├─loot_tables
+    └─tags
+```
+
+It is actually the same as the structure of `data` folder in a Minecraft datapack.
 
 ---
 
@@ -196,7 +235,41 @@ while (i % 2 == 0 && i < 10) {
     tellraw @a "Hello World!"
 }
 ```
-## Language Links
 
-- [English](#development)
-- [中文](#开发说明)
+## 命令行
+
+```
+使用: inj [选项] <目录>
+
+编译你的项目
+
+参数:
+  <目录>                源文件夹
+
+选项:
+  -V, --version        输出版本号
+  -o, --output <path>  输出路径
+  -w, --watch          监听模式
+  -h, --help           显示帮助信息
+```
+
+源代码目录是保存你的源代码的目录，其结构如下：
+
+```
+src
+├─<your_namespace>
+│  ├─advancements
+│  ├─functions
+│  │  ├─test.mcfunction
+│  │  └─hello.mcfunction
+│  ├─loot_tables
+│  ├─recipes
+│  └─tags
+└─minecraft
+    ├─dimension
+    ├─dimension_type
+    ├─loot_tables
+    └─tags
+```
+
+它实际上与 Minecraft 数据包中的 `data` 文件夹的结构相同。
