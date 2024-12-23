@@ -17,42 +17,51 @@ jobs:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
           
-      - name: Setup Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.21'
-          
       - name: Install dependencies
         run: npm ci
         
       - name: Build
         run: npm run build
         
-      - name: Build Go binaries
+      - name: Prepare release packages
         run: |
-          # Build for Windows
-          GOOS=windows GOARCH=amd64 go build -o release/windows/inj.exe inj.go
+          # Prepare Windows package
+          mkdir -p release/windows
+          cp exe/windows/inj.exe release/windows/
           cp -r dist release/windows/
           cp package.json release/windows/
           cp package-lock.json release/windows/
+          cd release
+          zip -r windows.zip windows/
+          cd ..
           
-          # Build for Linux
-          GOOS=linux GOARCH=amd64 go build -o release/linux/inj inj.go
+          # Prepare Linux package
+          mkdir -p release/linux
+          cp exe/linux/inj release/linux/
           cp -r dist release/linux/
           cp package.json release/linux/
           cp package-lock.json release/linux/
+          cd release
+          tar czf linux.tar.gz linux/
+          cd ..
           
-          # Build for macOS
-          GOOS=darwin GOARCH=amd64 go build -o release/macos/inj inj.go
+          # Prepare macOS package
+          mkdir -p release/macos
+          cp exe/macos/inj release/macos/
           cp -r dist release/macos/
           cp package.json release/macos/
           cp package-lock.json release/macos/
+          cd release
+          tar czf macos.tar.gz macos/
+          cd ..
           
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            release/**/*
+            release/windows.zip
+            release/linux.tar.gz
+            release/macos.tar.gz
           draft: false
           prerelease: false
         env:
