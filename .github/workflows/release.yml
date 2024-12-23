@@ -10,12 +10,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
           registry-url: 'https://registry.npmjs.org'
+          
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
           
       - name: Install dependencies
         run: npm ci
@@ -23,12 +28,25 @@ jobs:
       - name: Build
         run: npm run build
         
-      - name: Prepare release files
+      - name: Build Go binaries
         run: |
-          mkdir release
-          cp -r dist/* release/
-          cp package.json release/
-          cp package-lock.json release/
+          # Build for Windows
+          GOOS=windows GOARCH=amd64 go build -o release/windows/inj.exe inj.go
+          cp -r dist release/windows/
+          cp package.json release/windows/
+          cp package-lock.json release/windows/
+          
+          # Build for Linux
+          GOOS=linux GOARCH=amd64 go build -o release/linux/inj inj.go
+          cp -r dist release/linux/
+          cp package.json release/linux/
+          cp package-lock.json release/linux/
+          
+          # Build for macOS
+          GOOS=darwin GOARCH=amd64 go build -o release/macos/inj inj.go
+          cp -r dist release/macos/
+          cp package.json release/macos/
+          cp package-lock.json release/macos/
           
       - name: Create Release
         uses: softprops/action-gh-release@v1

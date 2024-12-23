@@ -1,5 +1,6 @@
 import * as babel from '@babel/core';
 import forCondition from './transform/forCondition.js';
+import path from 'path';
 
 const DeprecatedCommandList = [
     "replaceitem",
@@ -60,12 +61,12 @@ export class Transformer {
         const result = babel.transformSync(transformedLines.join('\n'), {
             presets: [
                 ['@babel/preset-env', {
-                    modules: false  // 禁止将 ES 模块转换为 CommonJS
+                    modules: false  // Keep ES modules
                 }]
             ],
             plugins: [forCondition],
             sourceType: 'module',
-            ast: true,
+            ast: true
         });
         return (result && result.code) ? result.code : "";
     }
@@ -89,12 +90,22 @@ export class Transformer {
             return line;
         }
 
-        // Rule 2: Check if it's a single identifier
+        // Rule 2: Skip if starts with //
+        if (trimmedLine.startsWith("//")) {
+            return "";
+        }
+
+        // Rule 3: Skip if starts with #
+        if (trimmedLine.startsWith("#")) {
+            return "";
+        }
+
+        // Rule 4: Check if it's a single identifier
         if (this.isSingleIdentifier(trimmedLine)) {
             return this.wrapWithExecute(line);
         }
 
-        // Rule 3: Check if it starts with "identifier space identifier"
+        // Rule 5: Check if it starts with "identifier space identifier"
         if (this.isMinecraftCommand(trimmedLine)) {
             return this.wrapWithExecute(line);
         }
@@ -130,6 +141,6 @@ export class Transformer {
         // Preserve original indentation
         const indentation = line.match(/^\s*/)?.[0] || '';
         const trimmedLine = line.trim();
-        return `${indentation}INJ.execute(\`${trimmedLine.replace(/`/g, "\\`")}\`)`;
+        return `${indentation}INJ.run(\`${trimmedLine.replace(/`/g, "\\`")}\`)`;
     }
 }

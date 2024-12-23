@@ -13,7 +13,7 @@ class INJContext {
     }
 
     INJ = {
-        execute: (cmd: string) => {
+        run: (cmd: string) => {
             this.current.code += cmd + "\n";
         },
         jump: (conditions: string, callback: () => string) => {
