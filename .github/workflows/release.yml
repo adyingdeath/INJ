@@ -1,5 +1,11 @@
 name: Release
 
+# Add permissions configuration at the top level
+permissions:
+  contents: write
+  discussions: write
+  pull-requests: write
+
 on:
   push:
     tags:
