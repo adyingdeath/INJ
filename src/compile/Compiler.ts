@@ -88,7 +88,6 @@ export class Compiler {
             // Run the code with module support
             vm.runInContext(transformedCode, vmContext);
         } catch (error) {
-            console.error('Compilation error:', error);
             throw error;
         }
     }

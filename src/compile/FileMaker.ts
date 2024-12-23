@@ -92,7 +92,6 @@ export class FileMaker {
                 }
             }
         } catch (error) {
-            console.error('Error copying non-function directories:', error);
             throw error;
         }
     }
