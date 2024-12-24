@@ -48,6 +48,13 @@ const JECommandList = [
 
 const MinecraftCommandList = Array.from(new Set([...DeprecatedCommandList, ...BECommandList, ...JECommandList]));
 
+const MINECRAFT_PATTERNS = {
+    namespace: /^[a-z0-9_\-\.]+$/,
+    nameAfterNamespace: /^[a-z0-9_\-\.\/]+$/,
+    commandName: /^[a-z][a-z0-9]*$/,
+    returnValue: /^[+\-]?\d+$/
+};
+
 export class Transformer {
     /**
      * Transform code into valid JavaScript
@@ -81,7 +88,7 @@ export class Transformer {
         const trimmedLine = line.trim();
 
         // Skip empty lines
-        if (!trimmedLine) {
+        if (trimmedLine.length === 0) {
             return line;
         }
 
@@ -90,22 +97,20 @@ export class Transformer {
             return line;
         }
 
-        // Rule 2: Skip if starts with //
-        if (trimmedLine.startsWith("//")) {
+        // Rule 2: Skip if starts with // or #
+        if (trimmedLine.startsWith("//") || trimmedLine.startsWith("#")) {
             return "";
         }
 
-        // Rule 3: Skip if starts with #
-        if (trimmedLine.startsWith("#")) {
-            return "";
-        }
-
-        // Rule 4: Check if it's a single identifier
+        // Rule 3: Check if it's a single identifier
         if (this.isSingleIdentifier(trimmedLine)) {
             return this.wrapWithExecute(line);
         }
 
-        // Rule 5: Check if it starts with "identifier space identifier"
+        /* Rule 4: Check if it might be a Minecraft command
+        *  If it is, wrap it with INJ.run()
+        *  We will treat those uncleared lines as JS code
+        */
         if (this.isMinecraftCommand(trimmedLine)) {
             return this.wrapWithExecute(line);
         }
@@ -127,10 +132,41 @@ export class Transformer {
      * Check if the line starts with two identifiers separated by space
      */
     private isMinecraftCommand(line: string): boolean {
-        // Match pattern: identifier + space + identifier
-        const pattern = /^[^(){}\[\]<>;"'\s]+\s+[^(){}\[\]<>;"'\s]+/;
-        if (!pattern.test(line)) return false;
-        if (!MinecraftCommandList.includes(line.split(" ")[0])) return false;
+        const segments = line.split(" ");
+        if (!MinecraftCommandList.includes(segments[0])) return false;
+        switch (segments[0]) {
+            case "function": {
+                if (segments.length === 1) return false;
+                const [left, right, more] = segments[1].split(":");
+                // check if right is not empty
+                if (more) return false;
+                // check if "namespace:name"
+                if (MINECRAFT_PATTERNS.namespace.test(left) && MINECRAFT_PATTERNS.nameAfterNamespace.test(right)) return true;
+                // check if "name"
+                if (MINECRAFT_PATTERNS.nameAfterNamespace.test(left)) return true;
+                return false;
+            }
+            case "return": {
+                if (segments.length === 1) return false;
+                if (segments[1] === "fail") {
+                    /* Format: return fail
+                    *  So there should be only 2 segments
+                    */
+                    if (segments.length != 2) return false;
+                } else if (segments[1] === "run") {
+                    /* Format: return run <command>
+                    *  So there should be at least 3 segments and the third one should be a valid command name
+                    */
+                    if (segments.length < 3) return false;
+                    if (!MINECRAFT_PATTERNS.commandName.test(segments[2])) return false;
+                } else {
+                    /* Format: return <value>
+                    * <value> should be a valid integer
+                    */
+                    if (!MINECRAFT_PATTERNS.returnValue.test(segments[1])) return false;
+                }
+            }
+        }
         return true;
     }
 
