@@ -1,6 +1,7 @@
 import * as babel from '@babel/core';
 import forCondition from './transform/forCondition.js';
-import path from 'path';
+import { ImportConstraint } from './CodeTree.js';
+import { ExportConstraint } from './CodeTree.js';
 
 const DeprecatedCommandList = [
     "replaceitem",
@@ -56,12 +57,28 @@ const MINECRAFT_PATTERNS = {
 };
 
 export class Transformer {
+    private ioObject: {
+        imports: ImportConstraint[];
+        exports: ExportConstraint[];
+    } = {
+        imports: [],
+        exports: []
+    }
+    /* Whether we are in the header zone
+    *  Header zone is at the beginning of the file, containing some special commands.
+    *  Special commands format:
+    *  ;;<command>;<args>;<args>...
+    */
+    private isHeaderZone: boolean = true;
+
     /**
      * Transform code into valid JavaScript
      * @param code Input code (single or multiple lines)
      * @returns Transformed code
      */
-    transform(code: string): string {
+    transform(code: string): { code: string; imports: ImportConstraint[]; exports: ExportConstraint[]; } {
+        // At the beginning of the file, we are in the header zone
+        this.isHeaderZone = true;
         // Split code into lines and process each line
         const lines = code.split('\n');
         const transformedLines = lines.map(line => this.transformLine(line));
@@ -72,10 +89,14 @@ export class Transformer {
                 }]
             ],
             plugins: [forCondition],
-            sourceType: 'module',
-            ast: true
+            sourceType: 'module'
         });
-        return (result && result.code) ? result.code : "";
+        const returnObject = {
+            code: (result && result.code) ? result.code : "",
+            imports: this.ioObject.imports,
+            exports: this.ioObject.exports
+        }
+        return returnObject;
     }
 
     /**
@@ -91,6 +112,31 @@ export class Transformer {
         if (trimmedLine.length === 0) {
             return line;
         }
+
+        // Special commands on the beginning of the file
+        if (this.isHeaderZone && trimmedLine.startsWith(";;")) {
+            const command = trimmedLine.slice(2).split(";");
+            switch (command[0]) {
+                case "import": {
+                    this.ioObject.imports.push({
+                        target: command[1],
+                        name: command[2]
+                    });
+                    break;
+                }
+                case "export": {
+                    this.ioObject.exports.push({
+                        target: command[1],
+                        name: command[2]
+                    });
+                    break;
+                }
+            }
+            return "";
+        }
+
+        // Meet some lines which are not the format of Header Zone
+        this.isHeaderZone = false;
 
         // Rule 1: Skip if ends with semicolon
         if (trimmedLine.endsWith(';')) {

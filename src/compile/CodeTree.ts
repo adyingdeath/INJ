@@ -1,6 +1,16 @@
 import fs from "fs";
 import path from "path";
 
+export interface ImportConstraint {
+    target: string;// The filename of the module or file you want to import
+    name: string;// The name of the variable you can use in the INJ code
+}
+
+export interface ExportConstraint {
+    target: string;// The filename of the module or file you want to export
+    name: string;// The name of the variable you can use in the INJ code
+}
+
 /**
  * Interface representing a code snippet in the tree
  */
@@ -8,6 +18,8 @@ export interface Snippet {
     namespace: string;
     filename: string;
     code: string;
+    imports: ImportConstraint[];
+    exports: ExportConstraint[];
 }
 
 /**
@@ -82,6 +94,8 @@ export default class CodeTree {
                     namespace: namespace,
                     filename: filenameWithoutExt.replace(/\\/g, '/'), // Ensure forward slashes
                     code: code,
+                    imports: [],
+                    exports: []
                 });
             }
         }

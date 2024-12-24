@@ -1,15 +1,22 @@
 import vm from 'node:vm';
 import { Transformer } from './Transformer.js';
-import CodeTree, { Snippet } from './CodeTree.js';
+import CodeTree, { ImportConstraint, Snippet } from './CodeTree.js';
 import randomCode from '../util/randomCode.js';
+
+
+async function importModule(imports: ImportConstraint[]): Promise<any[]> {
+    return Promise.all(imports.map(async (i) => await import(i.target)));
+}
 
 class INJContext {
     public codeTree: CodeTree;
     public current: Snippet;
+    public imports: any[];
 
-    constructor(codeTree: CodeTree, current: Snippet) {
+    constructor(codeTree: CodeTree, current: Snippet, imports: any[]) {
         this.codeTree = codeTree;
         this.current = current;
+        this.imports = imports;
     }
 
     INJ = {
@@ -23,17 +30,20 @@ class INJContext {
                 namespace: "inj",
                 filename: `${id}`,
                 code: "",
+                imports: [],
+                exports: []
             }
     
             this.codeTree.root["inj"].push(node);
             this.current.code += `execute ${conditions} run function inj:${node.filename}\n`;
 
-            const inj = new INJContext(this.codeTree, node)
+            const inj = new INJContext(this.codeTree, node, this.imports);
             
             // Create a new context with module options
             const vmContext = vm.createContext({
                 INJ: inj.INJ,
                 console: console,
+                ...this.imports
             });
 
             vm.runInContext(`(${callback.toString()})();`, vmContext);
@@ -76,17 +86,28 @@ export class Compiler {
      */
     private async compileSnippet(tree: CodeTree, current: Snippet, code: string): Promise<void> {
         try {
-            const transformedCode = this.transformer.transform(code);
-            const context = new INJContext(tree, current);
+            const transformed = this.transformer.transform(code);
+            current.imports = transformed.imports;
+            current.exports = transformed.exports;
+
+            // Dynamically import modules
+            const imports = await importModule(transformed.imports);
+            const importsObject: { [key: string]: any } = {};
+            for (let i = 0; i < imports.length; i++) {
+                importsObject[transformed.imports[i].name as string] = imports[i];
+            }
+
+            const context = new INJContext(tree, current, imports);
             
             // Create a new context with module options
             const vmContext = vm.createContext({
                 INJ: context.INJ,
                 console: console,
+                ...importsObject
             });
 
             // Run the code with module support
-            vm.runInContext(transformedCode, vmContext);
+            vm.runInContext(transformed.code, vmContext);
         } catch (error) {
             throw error;
         }
