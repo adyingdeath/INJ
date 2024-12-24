@@ -102,12 +102,7 @@ export class Transformer {
             return "";
         }
 
-        // Rule 3: Check if it's a single identifier
-        if (this.isSingleIdentifier(trimmedLine)) {
-            return this.wrapWithExecute(line);
-        }
-
-        /* Rule 4: Check if it might be a Minecraft command
+        /* Rule 3: Check if it might be a Minecraft command
         *  If it is, wrap it with INJ.run()
         *  We will treat those uncleared lines as JS code
         */
