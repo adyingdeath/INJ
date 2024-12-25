@@ -37,6 +37,7 @@ jobs:
           cp -r dist release/windows/
           cp package.json release/windows/
           cp package-lock.json release/windows/
+          cp install.js release/windows/
           cd release
           zip -r windows.zip windows/
           cd ..
@@ -47,6 +48,7 @@ jobs:
           cp -r dist release/linux/
           cp package.json release/linux/
           cp package-lock.json release/linux/
+          cp install.js release/linux/
           cd release
           tar czf linux.tar.gz linux/
           cd ..
@@ -57,6 +59,7 @@ jobs:
           cp -r dist release/macos/
           cp package.json release/macos/
           cp package-lock.json release/macos/
+          cp install.js release/macos/
           cd release
           tar czf macos.tar.gz macos/
           cd ..
