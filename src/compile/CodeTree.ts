@@ -18,8 +18,6 @@ export interface Snippet {
     namespace: string;
     filename: string;
     code: string;
-    imports: ImportConstraint[];
-    exports: ExportConstraint[];
 }
 
 /**
@@ -93,9 +91,7 @@ export default class CodeTree {
                 this.root[namespace].push({
                     namespace: namespace,
                     filename: filenameWithoutExt.replace(/\\/g, '/'), // Ensure forward slashes
-                    code: code,
-                    imports: [],
-                    exports: []
+                    code: code
                 });
             }
         }

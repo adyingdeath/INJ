@@ -29,9 +29,7 @@ class INJContext {
             let node: Snippet = {
                 namespace: "inj",
                 filename: `${id}`,
-                code: "",
-                imports: [],
-                exports: []
+                code: ""
             }
     
             this.codeTree.root["inj"].push(node);
@@ -87,8 +85,6 @@ export class Compiler {
     private async compileSnippet(tree: CodeTree, current: Snippet, code: string): Promise<void> {
         try {
             const transformed = this.transformer.transform(code);
-            current.imports = transformed.imports;
-            current.exports = transformed.exports;
 
             // Dynamically import modules
             const imports = await importModule(transformed.imports);
