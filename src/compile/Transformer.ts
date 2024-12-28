@@ -149,7 +149,7 @@ export class Transformer {
         }
 
         /* Rule 3: Check if it might be a Minecraft command
-        *  If it is, wrap it with INJ.run()
+        *  If it is, wrap it with $()
         *  We will treat those uncleared lines as JS code
         */
         if (this.isMinecraftCommand(trimmedLine)) {
@@ -218,6 +218,6 @@ export class Transformer {
         // Preserve original indentation
         const indentation = line.match(/^\s*/)?.[0] || '';
         const trimmedLine = line.trim();
-        return `${indentation}INJ.run(\`${trimmedLine.replace(/`/g, "\\`")}\`)`;
+        return `${indentation}$(\`${trimmedLine.replace(/`/g, "\\`")}\`)`;
     }
 }

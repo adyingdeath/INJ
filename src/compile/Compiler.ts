@@ -20,7 +20,7 @@ class INJContext {
     }
 
     INJ = {
-        run: (cmd: string) => {
+        $: (cmd: string) => {
             this.current.code += cmd + "\n";
         },
         jump: (conditions: string, callback: () => string) => {
@@ -40,7 +40,7 @@ class INJContext {
             // Create a new context with module options
             const vmContext = vm.createContext({
                 INJ: inj.INJ,
-                $: inj.INJ.run,
+                $: inj.INJ.$,
                 console: console,
                 ...this.imports
             });
@@ -99,7 +99,7 @@ export class Compiler {
             // Create a new context with module options
             const vmContext = vm.createContext({
                 INJ: context.INJ,
-                $: context.INJ.run,
+                $: context.INJ.$,
                 console: console,
                 ...importsObject
             });
