@@ -40,6 +40,7 @@ class INJContext {
             // Create a new context with module options
             const vmContext = vm.createContext({
                 INJ: inj.INJ,
+                $: inj.INJ.run,
                 console: console,
                 ...this.imports
             });
@@ -98,6 +99,7 @@ export class Compiler {
             // Create a new context with module options
             const vmContext = vm.createContext({
                 INJ: context.INJ,
+                $: context.INJ.run,
                 console: console,
                 ...importsObject
             });
