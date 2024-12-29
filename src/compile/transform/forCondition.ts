@@ -203,7 +203,7 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
         }
         return `${unit.positive ? "if" : "unless"} ${result}`;
     }
-
+    // TODO: handle the problem that when the scoreboard is not set, the execute command will not work. Because test score = 1 will fail when the score is undefined.
     // Create if/unless execute blocks
     const ifExecute =
         segments.map((seg: LogicSegment, index: number) => {
@@ -292,6 +292,14 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
             )
         )
     );
+    unlessExecute.unshift(
+        t.expressionStatement(
+            t.callExpression(
+                t.identifier("$"),
+                [t.stringLiteral(`scoreboard players reset @a INJ_LOGIC`)]
+            )
+        )
+    );
 
     return {
         if: ifExecute,
@@ -347,7 +355,8 @@ export default function forCondition() {
                                 } else {
                                     statementsToInsert.push(...ifExecute);
                                 }
-                                if (path.node.alternate != null) {
+                                
+                                if (notnull(path.node.alternate)) {
                                     if (unlessExecute.length === 1) {
                                         statementsToInsert.push(unlessExecute[0]);
                                     } else {
@@ -399,7 +408,7 @@ export default function forCondition() {
                         const { if: ifExecute, unless: unlessExecute } = createIfAndUnlessStatements(path, segments);
 
                         // Create if/unless execute blocks for pure Minecraft conditions
-                        const executeStatements = [...ifExecute, ...unlessExecute];
+                        const executeStatements = notnull(path.node.alternate) ? [...ifExecute, ...unlessExecute] : [...ifExecute];
 
                         // Replace the entire if statement with our execute statements
                         path.replaceWithMultiple(executeStatements);
@@ -418,3 +427,6 @@ export default function forCondition() {
     };
 }
 
+function notnull(obj: any): boolean {
+    return obj != null && obj != undefined;
+}
