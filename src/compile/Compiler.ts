@@ -33,7 +33,7 @@ class INJContext {
             }
     
             this.codeTree.root["inj"].push(node);
-            this.current.code += `execute ${conditions} run function inj:${node.filename}\n`;
+            this.current.code += `execute as @s ${conditions} run function inj:${node.filename}\n`;
 
             const inj = new INJContext(this.codeTree, node, this.imports);
             

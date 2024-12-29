@@ -30,7 +30,7 @@ interface CodeTreeRoot {
 
 /**
  * Class representing a tree structure for Minecraft function files
- * Scans and organizes mcfunction files from a datapack directory
+ * Scans and organizes inj files from a datapack directory
  */
 export default class CodeTree {
     public root: CodeTreeRoot;
@@ -65,7 +65,7 @@ export default class CodeTree {
     }
 
     /**
-     * Recursively scans the functions directory and processes all .mcfunction files
+     * Recursively scans the functions directory and processes all .inj files
      * @param directory - Current directory being scanned
      * @param namespace - Namespace of the datapack
      * @param functionsRoot - Root directory of functions for relative path calculation
@@ -80,13 +80,13 @@ export default class CodeTree {
             if (stat.isDirectory()) {
                 // Recursively scan subdirectories
                 this.scanFunctionsDirectory(fullPath, namespace, functionsRoot);
-            } else if (item.endsWith('.mcfunction')) {
-                // Read and process .mcfunction file
+            } else if (item.endsWith('.inj')) {
+                // Read and process .inj file
                 const code = fs.readFileSync(fullPath, 'utf-8');
                 
                 // Calculate path relative to functions directory and remove extension
                 const relativePath = path.relative(functionsRoot, fullPath);
-                const filenameWithoutExt = relativePath.slice(0, -11); // Remove '.mcfunction' extension
+                const filenameWithoutExt = relativePath.slice(0, -4); // Remove '.inj' extension
                 
                 this.root[namespace].push({
                     namespace: namespace,
