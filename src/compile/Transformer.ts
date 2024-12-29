@@ -212,7 +212,7 @@ export class Transformer {
     }
 
     /**
-     * Wrap a line with inj.execute()
+     * Wrap a line with $()
      */
     private wrapWithExecute(line: string): string {
         // Preserve original indentation

@@ -236,13 +236,7 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
                 command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
                 return t.expressionStatement(
                     t.callExpression(
-                        t.memberExpression(
-                            t.memberExpression(
-                                t.identifier("this"),
-                                t.identifier("INJ")
-                            ),
-                            t.identifier("execute")
-                        ),
+                        t.identifier("$"),
                         [
                             t.arrayExpression(
                                 [t.stringLiteral(
@@ -265,13 +259,7 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
             command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
             return t.expressionStatement(
                 t.callExpression(
-                    t.memberExpression(
-                        t.memberExpression(
-                            t.identifier("this"),
-                            t.identifier("INJ")
-                        ),
-                        t.identifier("execute")
-                    ),
+                    t.identifier("$"),
                     [
                         t.arrayExpression(
                             [t.stringLiteral(
