@@ -186,7 +186,6 @@ interface IfAndUnlessStatements {
 }
 
 function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAndUnlessStatements {
-    let ids = segments.map(() => randomCode(4));
 
     /**
      * Map a segment variable to a string in execute command.
@@ -199,7 +198,7 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
         if (unit.type == "Var") {
             result = unit.name;
         } else if (unit.type == "Ref") {
-            result = `score ${ids[unit.ref as number]} INJ_LOGIC matches 1`;
+            result = `entity @s[scores={INJ_LOGIC=${segments.length}}]`;
         }
         return `${unit.positive ? "if" : "unless"} ${result}`;
     }
@@ -233,7 +232,7 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
                 command.push("execute");
                 command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
                 command.push("run");
-                command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
+                command.push(`scoreboard players add @s INJ_LOGIC 1`);
                 return t.expressionStatement(
                     t.callExpression(
                         t.identifier("$"),
@@ -256,7 +255,7 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
             command.push("execute");
             command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
             command.push("run");
-            command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
+            command.push(`scoreboard players add @s INJ_LOGIC 1`);
             return t.expressionStatement(
                 t.callExpression(
                     t.identifier("$"),
@@ -296,7 +295,7 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
         t.expressionStatement(
             t.callExpression(
                 t.identifier("$"),
-                [t.stringLiteral(`scoreboard players reset @a INJ_LOGIC`)]
+                [t.stringLiteral(`scoreboard players set @s INJ_LOGIC 0`)]
             )
         )
     );
