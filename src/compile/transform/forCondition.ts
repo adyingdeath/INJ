@@ -183,10 +183,11 @@ function segmentLogic(expr: Expression): LogicSegment[] {
 interface IfAndUnlessStatements {
     if: t.ExpressionStatement[];
     unless: t.ExpressionStatement[];
+    reset: t.ExpressionStatement[];
 }
 
 function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAndUnlessStatements {
-    let ids = segments.map(() => randomCode(4));
+    let ids = segments.map(() => "inj" + randomCode(4));
     let offset = 0;
     let isIf = true;
 
@@ -251,33 +252,34 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
         }
     }
 
-    const initialCommandMap = (id: string) => t.expressionStatement(
-        t.callExpression(
-            t.identifier("$"),
-            [t.stringLiteral(`scoreboard players set ${id} INJ_LOGIC 0`)]
-        )
-    );
-
     // Create if/unless execute blocks
     const ifExecute = segments.map(buildIfAndUnless).reverse();
 
     if (segments[0].vars.length === 1) {
         // If the first segment is a single variable, negate it.
         segments[0].vars[0].positive = !segments[0].vars[0].positive;
+        segments = segments.slice(0, 1);
     } else {
         // If the first segment has multiple variables, add a new segment with a single Ref to negate the whole segment.
         segments.unshift({ vars: [{ type: "Ref", ref: 0, positive: false }] });
-        ids.push(randomCode(4));
+        segments = segments.slice(0, 2);
+        ids.push("inj" + randomCode(4));
         offset++;
     }
     
     isIf = false;
     const unlessExecute = segments.map(buildIfAndUnless).reverse();
-    if (unlessExecute.length > 1) ifExecute.unshift(...ids.map(initialCommandMap));
+    const resetExecute = ids.map((id: string) => t.expressionStatement(
+        t.callExpression(
+            t.identifier("$"),
+            [t.stringLiteral(`scoreboard players reset ${id} INJ_LOGIC`)]
+        )
+    )).slice(1);
 
     return {
         if: ifExecute,
-        unless: unlessExecute
+        unless: unlessExecute,
+        reset: resetExecute
     };
 }
 
@@ -316,7 +318,7 @@ export default function forCondition() {
                             case "StringLiteral": {
                                 let segments = segmentLogic(callee.object);
                                 
-                                const { if: ifExecute, unless: unlessExecute } = createIfAndUnlessStatements(path, segments);
+                                const { if: ifExecute, unless: unlessExecute, reset: resetExecute } = createIfAndUnlessStatements(path, segments);
 
                                 // Get the condition from function arguments
                                 const jsCondition = test.arguments[0]; // Get the first argument as the if condition
@@ -337,6 +339,9 @@ export default function forCondition() {
                                         statementsToInsert.push(...unlessExecute);
                                     }
                                 }
+
+                                // Add reset commands for resetting the middle fakeplayers' scores
+                                statementsToInsert.push(...resetExecute);
 
                                 // Handle cases like "A".and() or "A".or()
                                 const methodName = callee.property.name;
@@ -379,10 +384,13 @@ export default function forCondition() {
                         const simplified = simplifyLogic(transformedLogic);
                         // Replace the original object with the transformed one
                         let segments = segmentLogic(simplified);
-                        const { if: ifExecute, unless: unlessExecute } = createIfAndUnlessStatements(path, segments);
+                        const { if: ifExecute, unless: unlessExecute, reset: resetExecute } = createIfAndUnlessStatements(path, segments);
 
                         // Create if/unless execute blocks for pure Minecraft conditions
                         const executeStatements = notnull(path.node.alternate) ? [...ifExecute, ...unlessExecute] : [...ifExecute];
+
+                        // Add reset commands for resetting the middle fakeplayers' scores
+                        executeStatements.push(...resetExecute);
 
                         // Replace the entire if statement with our execute statements
                         path.replaceWithMultiple(executeStatements);
