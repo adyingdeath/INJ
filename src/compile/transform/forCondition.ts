@@ -186,6 +186,9 @@ interface IfAndUnlessStatements {
 }
 
 function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAndUnlessStatements {
+    let ids = segments.map(() => randomCode(4));
+    let offset = 0;
+    let isIf = true;
 
     /**
      * Map a segment variable to a string in execute command.
@@ -198,64 +201,41 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
         if (unit.type == "Var") {
             result = unit.name;
         } else if (unit.type == "Ref") {
-            result = `entity @s[scores={INJ_LOGIC=${segments.length}}]`;
+            result = `score ${ids[unit.ref as number + offset]} INJ_LOGIC matches 1`;
         }
         return `${unit.positive ? "if" : "unless"} ${result}`;
     }
-    // TODO: handle the problem that when the scoreboard is not set, the execute command will not work. Because test score = 1 will fail when the score is undefined.
-    // Create if/unless execute blocks
-    const ifExecute =
-        segments.map((seg: LogicSegment, index: number) => {
-            if (index == 0) {
-                return t.expressionStatement(
-                    t.callExpression(
+
+    const buildIfAndUnless = (seg: LogicSegment, index: number) => {
+        if (index == 0) {
+            return t.expressionStatement(
+                t.callExpression(
+                    t.memberExpression(
                         t.memberExpression(
-                            t.memberExpression(
-                                t.identifier("this"),
-                                t.identifier("INJ")
-                            ),
-                            t.identifier("jump")
+                            t.identifier("this"),
+                            t.identifier("INJ")
                         ),
-                        [
-                            t.stringLiteral(
-                                seg.vars.map((v) => mapSegmentVars(v)).join(" ")
-                            ),
-                            t.arrowFunctionExpression(
-                                [],
-                                t.blockStatement(path.node.consequent.body)
-                            )
-                        ]
-                    )
-                );
-            } else {
-                let command: string[] = [];
-                command.push("execute");
-                command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
-                command.push("run");
-                command.push(`scoreboard players add @s INJ_LOGIC 1`);
-                return t.expressionStatement(
-                    t.callExpression(
-                        t.identifier("$"),
-                        [
-                            t.arrayExpression(
-                                [t.stringLiteral(
-                                    command.join(" ")
-                                )]
-                            )
-                        ]
-                    )
-                );
-            }
-        }).reverse();
-
-
-    const unlessExecute =
-        segments.map((seg: LogicSegment, index: number) => {
+                        t.identifier("jump")
+                    ),
+                    [
+                        t.stringLiteral(
+                            seg.vars.map((v) => mapSegmentVars(v)).join(" ")
+                        ),
+                        t.arrowFunctionExpression(
+                            [],
+                            isIf ? 
+                            t.blockStatement(path.node.consequent.body) :
+                            t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
+                        )
+                    ]
+                )
+            );
+        } else {
             let command: string[] = [];
             command.push("execute");
             command.push(seg.vars.map((v) => mapSegmentVars(v)).join(" "));
             command.push("run");
-            command.push(`scoreboard players add @s INJ_LOGIC 1`);
+            command.push(`scoreboard players set ${ids[index]} INJ_LOGIC 1`);
             return t.expressionStatement(
                 t.callExpression(
                     t.identifier("$"),
@@ -268,37 +248,32 @@ function createIfAndUnlessStatements(path: any, segments: LogicSegment[]): IfAnd
                     ]
                 )
             );
-        }).reverse();
-    unlessExecute.push(
-        t.expressionStatement(
-            t.callExpression(
-                t.memberExpression(
-                    t.memberExpression(
-                        t.identifier("this"),
-                        t.identifier("INJ")
-                    ),
-                    t.identifier("jump")
-                ),
-                [
-                    t.stringLiteral(
-                        ([{ type: "Ref", ref: 0, positive: false }] as LogicUnit[]).map((v) => mapSegmentVars(v)).join(" ")
-                    ),
-                    t.arrowFunctionExpression(
-                        [],
-                        t.blockStatement(path.node.alternate ? path.node.alternate.body : [])
-                    ),
-                ]
-            )
+        }
+    }
+
+    const initialCommandMap = (id: string) => t.expressionStatement(
+        t.callExpression(
+            t.identifier("$"),
+            [t.stringLiteral(`scoreboard players set ${id} INJ_LOGIC 0`)]
         )
     );
-    unlessExecute.unshift(
-        t.expressionStatement(
-            t.callExpression(
-                t.identifier("$"),
-                [t.stringLiteral(`scoreboard players set @s INJ_LOGIC 0`)]
-            )
-        )
-    );
+
+    // Create if/unless execute blocks
+    const ifExecute = segments.map(buildIfAndUnless).reverse();
+
+    if (segments[0].vars.length === 1) {
+        // If the first segment is a single variable, negate it.
+        segments[0].vars[0].positive = !segments[0].vars[0].positive;
+    } else {
+        // If the first segment has multiple variables, add a new segment with a single Ref to negate the whole segment.
+        segments.unshift({ vars: [{ type: "Ref", ref: 0, positive: false }] });
+        ids.push(randomCode(4));
+        offset++;
+    }
+    
+    isIf = false;
+    const unlessExecute = segments.map(buildIfAndUnless).reverse();
+    if (unlessExecute.length > 1) ifExecute.unshift(...ids.map(initialCommandMap));
 
     return {
         if: ifExecute,
