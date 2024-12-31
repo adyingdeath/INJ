@@ -21,11 +21,26 @@ export interface Snippet {
 }
 
 /**
+ * Represents a list of tags
+ * @param functions - The list of function tags
+*/
+export interface Tags {
+    functions: {
+        [location: string]: {
+            values: string[];
+        };
+    };
+}
+
+/**
  * Interface representing the root structure of the code tree
  * Maps namespace strings to arrays of snippets
  */
 interface CodeTreeRoot {
-    [namespace: string]: Snippet[];
+    [namespace: string]: {
+        snippets: Snippet[];
+        tags: Tags;
+    };
 }
 
 /**
@@ -37,7 +52,14 @@ export default class CodeTree {
 
     constructor(filename: string) {
         this.root = {
-            inj: []
+            inj: {
+                snippets: [],
+                tags: {
+                    functions: {
+                        
+                    }
+                }
+            }
         };
         // Only scan direct subdirectories in root
         const items = fs.readdirSync(filename);
@@ -55,12 +77,28 @@ export default class CodeTree {
      */
     private scanNamespace(namespacePath: string) {
         const namespace = path.basename(namespacePath);
-        const functionsPath = path.join(namespacePath, 'functions');
         
-        // If 'functions' directory exists, scan it
+        // Initialize namespace in root if not exists
+        if (!this.root[namespace]) {
+            this.root[namespace] = {
+                snippets: [],
+                tags: {
+                    functions: {}
+                }
+            };
+        }
+
+        const functionsPath = path.join(namespacePath, 'functions');
+        const tagsPath = path.join(namespacePath, 'tags', 'functions');
+        
+        // Scan functions directory if it exists
         if (fs.existsSync(functionsPath)) {
-            this.root[namespace] = [];
             this.scanFunctionsDirectory(functionsPath, namespace, functionsPath);
+        }
+
+        // Scan tags directory if it exists
+        if (fs.existsSync(tagsPath)) {
+            this.scanFunctionsTagsDirectory(tagsPath, namespace);
         }
     }
 
@@ -88,11 +126,49 @@ export default class CodeTree {
                 const relativePath = path.relative(functionsRoot, fullPath);
                 const filenameWithoutExt = relativePath.slice(0, -4); // Remove '.inj' extension
                 
-                this.root[namespace].push({
+                this.root[namespace].snippets.push({
                     namespace: namespace,
                     filename: filenameWithoutExt.replace(/\\/g, '/'), // Ensure forward slashes
                     code: code
                 });
+            }
+        }
+    }
+
+    /**
+     * Recursively scans the tags directory and processes all .json files
+     * @param directory - Current directory being scanned
+     * @param namespace - Namespace of the datapack
+     */
+    private scanFunctionsTagsDirectory(directory: string, namespace: string) {
+        const items = fs.readdirSync(directory);
+        
+        for (const item of items) {
+            const fullPath = path.join(directory, item);
+            const stat = fs.statSync(fullPath);
+            
+            if (stat.isDirectory()) {
+                // Recursively scan subdirectories
+                this.scanFunctionsTagsDirectory(fullPath, namespace);
+            } else if (item.endsWith('.json')) {
+                // Read and process .json file
+                const content = fs.readFileSync(fullPath, 'utf-8');
+                try {
+                    const tagData = JSON.parse(content);
+                    
+                    // Calculate path relative to the functions tags directory and remove extension
+                    const relativePath = path.relative(directory, fullPath);
+                    const tagPath = relativePath.slice(0, -5); // Remove '.json' extension
+                    
+                    // Store tag values in the tree
+                    if (tagData.values && Array.isArray(tagData.values)) {
+                        this.root[namespace].tags.functions[tagPath.replace(/\\/g, '/')] = {
+                            values: tagData.values
+                        };
+                    }
+                } catch (error) {
+                    console.warn(`Failed to parse tag file ${fullPath}: ${error}`);
+                }
             }
         }
     }

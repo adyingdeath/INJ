@@ -32,7 +32,7 @@ class INJContext {
                 code: ""
             }
     
-            this.codeTree.root["inj"].push(node);
+            this.codeTree.root["inj"].snippets.push(node);
             this.current.code += `execute as @s ${conditions} run function inj:${node.filename}\n`;
 
             const inj = new INJContext(this.codeTree, node, this.imports);
@@ -57,22 +57,24 @@ class INJContext {
  * Compiles and executes code using Node's vm module
  */
 export class Compiler {
+    private codeTree: CodeTree;
     private transformer: Transformer;
 
-    constructor() {
-        this.transformer = new Transformer();
+    constructor(codeTree: CodeTree) {
+        this.codeTree = codeTree;
+        this.transformer = new Transformer(codeTree);
     }
 
     /**
      * Main compile method for processing the entire code tree
      * @param tree CodeTree to compile
      */
-    async compile(tree: CodeTree): Promise<void> {
-        for (const namespace in tree.root) {
-            for (const snippet of tree.root[namespace]) {
+    async compile(): Promise<void> {
+        for (const namespace in this.codeTree.root) {
+            for (const snippet of this.codeTree.root[namespace].snippets) {
                 const code = snippet.code;
                 snippet.code = "";
-                await this.compileSnippet(tree, snippet, code);
+                await this.compileSnippet(snippet, code);
             }
         }
     }
@@ -83,9 +85,9 @@ export class Compiler {
      * @param current Current snippet being processed
      * @param code Raw code to compile
      */
-    private async compileSnippet(tree: CodeTree, current: Snippet, code: string): Promise<void> {
+    private async compileSnippet(current: Snippet, code: string): Promise<void> {
         try {
-            const transformed = this.transformer.transform(code);
+            const transformed = this.transformer.transform(code, current);
 
             // Dynamically import modules
             const imports = await importModule(transformed.imports);
@@ -94,7 +96,7 @@ export class Compiler {
                 importsObject[transformed.imports[i].name as string] = imports[i];
             }
 
-            const context = new INJContext(tree, current, imports);
+            const context = new INJContext(this.codeTree, current, imports);
             
             // Create a new context with module options
             const vmContext = vm.createContext({

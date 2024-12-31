@@ -1,6 +1,7 @@
 import { Expression } from "@babel/types";
 import * as t from "@babel/types";
 import randomCode from "../../util/randomCode.js";
+import { notnull } from "../../util/global.js";
 
 // Add these type definitions after the imports
 interface LogicUnit {
@@ -407,8 +408,4 @@ export default function forCondition() {
             }
         }
     };
-}
-
-function notnull(obj: any): boolean {
-    return obj != null && obj != undefined;
 }

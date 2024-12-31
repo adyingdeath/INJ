@@ -4,13 +4,12 @@ import { Compiler } from "./compile/Compiler.js";
 import { Transformer } from "./compile/Transformer.js";
 
 (async () => {
-    const tree = new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/GC/src")
+    const tree = new CodeTree("D:/Program Files/minecraft/hmcl/.minecraft/versions/1.20.1/saves/Growing Command/datapacks/chainblock/src")
 
     //const code = new Transformer().transform(tree.root.gc[0].code);
 
-    //console.log(code);
-    const compiler = new Compiler();
-    await compiler.compile(tree);
+    const compiler = new Compiler(tree);
+    await compiler.compile();
     console.dir(tree, { depth: null });
 })();
 

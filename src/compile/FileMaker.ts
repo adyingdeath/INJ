@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Snippet } from './CodeTree.js';
+import CodeTree, { Snippet, Tags } from './CodeTree.js';
 
 export class FileMaker {
     private sourcePath: string;
@@ -14,12 +14,12 @@ export class FileMaker {
     /**
      * Process the CodeTree and generate output files
      */
-    public async process(codeTree: { root: Record<string, Snippet[]> }) {
+    public async process(codeTree: CodeTree) {
         this.initializeOutputDirectory();
 
         // Process each namespace in the CodeTree
-        for (const [namespace, nodes] of Object.entries(codeTree.root)) {
-            await this.processNamespace(namespace, nodes);
+        for (const [namespace, data] of Object.entries(codeTree.root)) {
+            await this.processNamespace(namespace, data);
         }
 
         // Copy other directories from source (except functions)
@@ -43,16 +43,22 @@ export class FileMaker {
     /**
      * Process a single namespace and its code nodes
      */
-    private async processNamespace(namespace: string, nodes: Snippet[]) {
-        // Create namespace directory and functions directory
+    private async processNamespace(namespace: string, data: { snippets: Snippet[], tags: Tags }) {
+        // Create namespace directory, functions directory, and tags directory
         const namespacePath = path.join(this.outputPath, namespace);
         const functionsPath = path.join(namespacePath, 'functions');
+        const tagsPath = path.join(namespacePath, 'tags', 'functions');
+        
         fs.mkdirSync(functionsPath, { recursive: true });
+        fs.mkdirSync(tagsPath, { recursive: true });
 
-        // Process each code node
-        for (const node of nodes) {
-            await this.writeFunction(functionsPath, node);
+        // Process each code snippet
+        for (const snippet of data.snippets) {
+            await this.writeFunction(functionsPath, snippet);
         }
+
+        // Process function tags
+        await this.writeTags(tagsPath, data.tags);
     }
 
     /**
@@ -70,6 +76,27 @@ export class FileMaker {
         // Write the function file
         const filePath = path.join(dirPath, `${filename}.mcfunction`);
         fs.writeFileSync(filePath, node.code);
+    }
+
+    /**
+     * Write function tags to files
+     */
+    private async writeTags(basePath: string, tags: Tags) {
+        for (const [location, tag] of Object.entries(tags.functions)) {
+            // Handle nested directories in tag location
+            const parts = location.split('/');
+            const filename = `${parts.pop()}.json`;
+            const dirPath = path.join(basePath, ...parts);
+
+            // Create nested directories if needed
+            fs.mkdirSync(dirPath, { recursive: true });
+
+            // Write the tag file
+            const filePath = path.join(dirPath, filename);
+            fs.writeFileSync(filePath, JSON.stringify({
+                values: tag.values
+            }, null, 2));
+        }
     }
 
     /**

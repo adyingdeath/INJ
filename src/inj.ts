@@ -107,8 +107,8 @@ async function processDirectory(sourcePath: string, options: { output?: string, 
         if (options.log) {
             console.log("Compiling...");
         }
-        const compiler = new Compiler();
-        await compiler.compile(codeTree);
+        const compiler = new Compiler(codeTree);
+        await compiler.compile();
         
         if (options.log) {
             console.log("Generating output files...");

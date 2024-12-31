@@ -1,7 +1,8 @@
 import * as babel from '@babel/core';
 import forCondition from './transform/forCondition.js';
-import { ImportConstraint } from './CodeTree.js';
+import CodeTree, { ImportConstraint, Snippet } from './CodeTree.js';
 import { ExportConstraint } from './CodeTree.js';
+import { isUnspecified, notnull, notUnspecified } from '../util/global.js';
 
 const DeprecatedCommandList = [
     "replaceitem",
@@ -57,6 +58,9 @@ const MINECRAFT_PATTERNS = {
 };
 
 export class Transformer {
+    private codeTree: CodeTree;
+    private currentSnippet: Snippet | undefined = undefined;
+
     private ioObject: {
         imports: ImportConstraint[];
         exports: ExportConstraint[];
@@ -71,12 +75,17 @@ export class Transformer {
     */
     private isHeaderZone: boolean = true;
 
+    constructor(codeTree: CodeTree) {
+        this.codeTree = codeTree;
+    }
+
     /**
      * Transform code into valid JavaScript
      * @param code Input code (single or multiple lines)
      * @returns Transformed code
      */
-    transform(code: string): { code: string; imports: ImportConstraint[]; exports: ExportConstraint[]; } {
+    transform(code: string, currentSnippet: Snippet): { code: string; imports: ImportConstraint[]; exports: ExportConstraint[]; } {
+        this.currentSnippet = currentSnippet;
         // At the beginning of the file, we are in the header zone
         this.isHeaderZone = true;
         // Split code into lines and process each line
@@ -129,6 +138,43 @@ export class Transformer {
                         target: command[1],
                         name: command[2]
                     });
+                    break;
+                }
+                case "tags": {
+                    /* Definition for tags.
+                    *  ;;tags;<namespace>:<location>;<namespace>:<location>;<namespace>:<location>...
+                    */
+                    // If the current snippet is not specified, skip this tags definition
+                    if (this.currentSnippet === undefined) break;
+                    for (const tag of command.slice(1)) {
+                        // Split the tag into namespace and name. If there is no namespace, use "minecraft" as namespace.
+                        let namespace = undefined, location = undefined;
+                        if (tag.includes(":")) {
+                            // If there is a namespace, use it as namespace
+                            [namespace, location] = tag.split(":");
+                        } else {
+                            // If there is no namespace, use "minecraft" as namespace
+                            location = tag;
+                        }
+                        if (isUnspecified(namespace)) {
+                            namespace = "minecraft";
+                        }
+                        if (isUnspecified(location)) {
+                            continue;
+                        }
+                        if (notUnspecified(this.codeTree.root[namespace as string].tags.functions[location])) {
+                            this.codeTree.root[namespace as string].tags.functions[location]
+                            .values.push(
+                                `${this.currentSnippet.namespace ? this.currentSnippet.namespace + ":" : ""}${this.currentSnippet.filename}`
+                            );
+                        } else {
+                            this.codeTree.root[namespace as string].tags.functions[location] = {
+                                values: [
+                                    `${this.currentSnippet.namespace ? this.currentSnippet.namespace + ":" : ""}${this.currentSnippet.filename}`
+                                ]
+                            };
+                        }
+                    }
                     break;
                 }
             }
